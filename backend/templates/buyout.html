@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Выкуп - OSAGAMING CRM{% endblock %}
+
+{% block styles %}
+<style>
+    .page-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+    }
+    .filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem;
+        box-shadow: var(--shadow);
+    }
+    .btn {
+        padding: 0.65rem 1rem;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--primary);
+        color: #fff;
+        cursor: pointer;
+    }
+    .btn.secondary {
+        background: var(--bg-secondary);
+        color: var(--text);
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    th, td {
+        border: 1px solid var(--border);
+        padding: 0.65rem;
+        text-align: left;
+        vertical-align: top;
+    }
+    th {
+        background: var(--bg-secondary);
+        font-weight: 700;
+    }
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .muted { color: var(--text-muted); font-size: 0.9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">🛒 Выкуп объявлений</h1>
+
+<div class="card">
+    <div class="filters">
+        <div>
+            <label class="muted">Поиск</label>
+            <input id="filter-query" class="form-input" placeholder="Ключевые слова">
+        </div>
+        <div>
+            <label class="muted">Категория ID</label>
+            <input id="filter-category" class="form-input" type="number" min="0" placeholder="напр. 10">
+        </div>
+        <div>
+            <label class="muted">Локация ID</label>
+            <input id="filter-location" class="form-input" type="number" min="0" placeholder="напр. 650000">
+        </div>
+        <div>
+            <label class="muted">Цена от</label>
+            <input id="filter-price-min" class="form-input" type="number" min="0">
+        </div>
+        <div>
+            <label class="muted">Цена до</label>
+            <input id="filter-price-max" class="form-input" type="number" min="0">
+        </div>
+        <div>
+            <label class="muted">Лимит</label>
+            <input id="filter-limit" class="form-input" type="number" min="1" max="200" value="50">
+        </div>
+    </div>
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+        <button class="btn" onclick="searchBuyout(true)">🔎 Искать и сохранить</button>
+        <button class="btn secondary" onclick="searchBuyout(false)">Искать без сохранения</button>
+        <button class="btn secondary" onclick="toggleAutoRefresh()">🔁 Автообновление: <span id="auto-refresh-label">выкл</span></button>
+    </div>
+    <div id="buyout-status" class="muted" style="margin-top:0.5rem;"></div>
+</div>
+
+<div class="card" style="margin-top:1rem; overflow:auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>Объявление</th>
+                <th>Цена</th>
+                <th>Локация</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody id="buyout-table">
+            <tr><td colspan="4" class="muted">Нет данных</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    let autoRefresh = false;
+    let autoTimer = null;
+    let lastPayload = null;
+
+    function setStatus(text) {
+        document.getElementById('buyout-status').textContent = text || '';
+    }
+
+    function toggleAutoRefresh() {
+        autoRefresh = !autoRefresh;
+        document.getElementById('auto-refresh-label').textContent = autoRefresh ? 'вкл' : 'выкл';
+        if (autoRefresh && lastPayload) {
+            scheduleAuto();
+        } else if (!autoRefresh && autoTimer) {
+            clearInterval(autoTimer);
+        }
+    }
+
+    function scheduleAuto() {
+        if (autoTimer) clearInterval(autoTimer);
+        autoTimer = setInterval(() => {
+            if (lastPayload) {
+                searchBuyout(lastPayload.save_results, false);
+            }
+        }, 30000); // каждые 30 секунд
+    }
+
+    async function searchBuyout(save_results = true, updatePayload = true) {
+        const payload = {
+            query: document.getElementById('filter-query').value.trim(),
+            category_id: parseInt(document.getElementById('filter-category').value) || null,
+            location_id: parseInt(document.getElementById('filter-location').value) || null,
+            price_min: parseFloat(document.getElementById('filter-price-min').value) || null,
+            price_max: parseFloat(document.getElementById('filter-price-max').value) || null,
+            limit: Math.min(Math.max(parseInt(document.getElementById('filter-limit').value) || 50, 1), 200),
+            save_results
+        };
+        if (updatePayload) {
+            lastPayload = payload;
+            if (autoRefresh) scheduleAuto();
+        }
+        setStatus('Загрузка...');
+        try {
+            const resp = await fetch('/api/listings/search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if (!resp.ok) {
+                setStatus('Ошибка поиска');
+                return;
+            }
+            const data = await resp.json();
+            renderListings(data.listings || []);
+            setStatus(`Найдено: ${data.total || data.listings?.length || 0}${save_results ? ', сохранено: ' + (data.saved || 0) : ''}`);
+        } catch (e) {
+            console.error(e);
+            setStatus('Ошибка запроса');
+        }
+    }
+
+    function renderListings(list) {
+        const tbody = document.getElementById('buyout-table');
+        if (!list || list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="muted">Нет данных</td></tr>';
+            return;
+        }
+        tbody.innerHTML = list.map(item => {
+            const price = item.price ? item.price + ' ₽' : '-';
+            const statusDot = item.status === 'new' ? '#22c55e' : '#f59e0b';
+            return `
+                <tr>
+                    <td>
+                        <div><a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.title || 'Без названия'}</a></div>
+                        <div class="muted">${item.description ? item.description.slice(0, 120) + '...' : ''}</div>
+                    </td>
+                    <td>${price}</td>
+                    <td>${item.location || ''}</td>
+                    <td><span class="status-dot" style="background:${statusDot};"></span> ${item.status || 'new'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+</script>
+{% endblock %}

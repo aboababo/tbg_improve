@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}Логи системы - OSAGAMING CRM{% endblock %}
+
+{% block styles %}
+<style>
+        .logs-container {
+            padding: 1rem;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logs-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .filters-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-input {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius));
+            background: var(--card);
+            color: var(--text);
+        }
+
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card);
+            border-radius: calc(var(--radius));
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .logs-table th,
+        .logs-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logs-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .logs-table tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        .log-action {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .log-user {
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+        }
+
+        .log-details {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .pagination-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            border-radius: calc(var(--radius));
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--bg-secondary);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .empty-logs {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        .empty-logs-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .user-filter {
+            min-width: 200px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="logs-container">
+            <div class="logs-header">
+                <h1 class="logs-title">📋 Логи системы</h1>
+                <div class="filters-row">
+                    <select id="user-filter" class="filter-input user-filter">
+                        <option value="">Все пользователи</option>
+                        <!-- Будет заполнено JavaScript -->
+                    </select>
+                    <input type="date" id="date-filter" class="filter-input">
+                    <button class="btn btn-secondary" onclick="loadLogs()">🔄 Обновить</button>
+                </div>
+            </div>
+
+            <div id="logs-content">
+                <div class="loading">Загрузка логов...</div>
+            </div>
+
+            <div class="pagination" id="pagination-container" style="display: none;">
+                <!-- Пагинация будет добавлена сюда -->
+            </div>
+        </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+        let currentPage = 1;
+        let totalPages = 1;
+        const logsPerPage = 50;
+
+        // Загрузка списка пользователей для фильтра
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/managers/list');
+                const users = await response.json();
+
+                const userFilter = document.getElementById('user-filter');
+                userFilter.innerHTML = '<option value="">Все пользователи</option>';
+
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.username} (${user.role})`;
+                    userFilter.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки пользователей:', error);
+            }
+        }
+
+        // Загрузка логов
+        async function loadLogs(page = 1) {
+            const userId = document.getElementById('user-filter').value;
+            const date = document.getElementById('date-filter').value;
+
+            const params = new URLSearchParams({
+                limit: logsPerPage,
+                offset: (page - 1) * logsPerPage
+            });
+
+            if (userId) params.set('user_id', userId);
+
+            const content = document.getElementById('logs-content');
+            content.innerHTML = '<div class="loading">Загрузка логов...</div>';
+
+            try {
+                const response = await fetch(`/api/user-activity-logs?${params}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const logs = await response.json();
+                renderLogs(logs);
+                currentPage = page;
+            } catch (error) {
+                console.error('Ошибка загрузки логов:', error);
+                content.innerHTML = '<div class="empty-logs"><div class="empty-logs-icon">⚠️</div><p>Не удалось загрузить логи</p></div>';
+            }
+        }
+
+        // Отрисовка логов
+        function renderLogs(logs) {
+            const content = document.getElementById('logs-content');
+
+            if (!logs || logs.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-logs">
+                        <div class="empty-logs-icon">📋</div>
+                        <p>Логов пока нет</p>
+                    </div>
+                `;
+                document.getElementById('pagination-container').style.display = 'none';
+                return;
+            }
+
+            // Расчет общего количества страниц (примерная оценка)
+            totalPages = Math.max(1, Math.ceil(logs.length / logsPerPage));
+
+            let html = `
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Время</th>
+                            <th>Пользователь</th>
+                            <th>Действие</th>
+                            <th>Описание</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            logs.forEach(log => {
+                const time = new Date(log.created_at).toLocaleString('ru-RU');
+                html += `
+                    <tr>
+                        <td class="log-time">${time}</td>
+                        <td class="log-user">${escapeHtml(log.username || 'Неизвестен')}</td>
+                        <td class="log-action">${escapeHtml(log.action_type || 'Неизвестное действие')}</td>
+                        <td class="log-details">${escapeHtml(log.action_description || '')}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            content.innerHTML = html;
+
+            // Пагинация
+            renderPagination();
+        }
+
+        // Отрисовка пагинации
+        function renderPagination() {
+            const container = document.getElementById('pagination-container');
+            if (totalPages <= 1) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'flex';
+
+            let html = '';
+
+            // Предыдущая страница
+            html += `<button class="pagination-btn" onclick="loadLogs(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>← Назад</button>`;
+
+            // Номера страниц
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                html += `<button class="pagination-btn" onclick="loadLogs(1)">1</button>`;
+                if (startPage > 2) {
+                    html += `<span style="margin: 0 0.5rem;">...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="loadLogs(${i})">${i}</button>`;
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span style="margin: 0 0.5rem;">...</span>`;
+                }
+                html += `<button class="pagination-btn" onclick="loadLogs(${totalPages})">${totalPages}</button>`;
+            }
+
+            // Следующая страница
+            html += `<button class="pagination-btn" onclick="loadLogs(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>Вперед →</button>`;
+
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsers();
+            loadLogs();
+
+            // Обновление при изменении фильтров
+            document.getElementById('user-filter').addEventListener('change', () => loadLogs(1));
+            document.getElementById('date-filter').addEventListener('change', () => loadLogs(1));
+        });
+</script>
+{% endblock %}

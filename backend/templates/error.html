@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Ошибка - OSAGAMING CRM{% endblock %}
+
+{% block styles %}
+<style>
+    .error-container {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+
+    .error-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    .error-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .error-message {
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-icon">⚠️</div>
+    <h1 class="error-title">Произошла ошибка</h1>
+    <p class="error-message">{{ error or 'Неизвестная ошибка' }}</p>
+    <a href="/{% if user and (user.get('role') == 'admin' or user.get('role') == 'super_admin') %}admin/dashboard{% elif user %}manager/dashboard{% else %}/{% endif %}" class="btn btn-primary">Вернуться на главную</a>
+</div>
+{% endblock %}

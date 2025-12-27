@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Аналитика - OSAGAMING CRM{% endblock %}
+
+{% block styles %}
+<style>
+    .page-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+    }
+
+    .analytics-section {
+        margin-bottom: 2.5rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.2s;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--gradient-primary);
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .stat-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stat-card:hover::before {
+        opacity: 1;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+        line-height: 1;
+    }
+
+    .stat-label {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-sublabel {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+        opacity: 0.8;
+    }
+
+    .stat-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: calc(var(--radius) / 2);
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-top: 0.5rem;
+    }
+
+    .badge-avito {
+        background: color-mix(in srgb, var(--primary) 20%, transparent);
+        color: var(--primary);
+    }
+
+    .badge-db {
+        background: color-mix(in srgb, #10b981 20%, transparent);
+        color: #10b981;
+    }
+
+    .analytics-table-container {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+    }
+
+    thead {
+        background: var(--bg-secondary);
+    }
+
+    th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text);
+        border-bottom: 2px solid var(--border);
+        white-space: nowrap;
+    }
+
+    td {
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 0.875rem;
+    }
+
+    tbody tr {
+        transition: background 0.2s;
+    }
+
+    tbody tr:hover {
+        background: color-mix(in srgb, var(--bg-secondary) 50%, transparent);
+    }
+
+    tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .status-ok {
+        color: #10b981;
+        font-weight: 600;
+    }
+
+    .status-warning {
+        color: #f59e0b;
+        font-weight: 600;
+    }
+
+    .status-error {
+        color: #ef4444;
+        font-weight: 600;
+    }
+
+    .refresh-btn {
+        background: var(--gradient-primary);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 1.5rem;
+    }
+
+    .refresh-btn:hover {
+        background: var(--gradient-primary-hover);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .loading {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+
+    .metric-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .metric-info {
+        flex: 1;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text);
+    }
+
+    .metric-icon {
+        font-size: 2rem;
+        opacity: 0.6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">📊 Аналитика и статистика</h1>
+
+<button class="refresh-btn" onclick="loadAnalytics()">🔄 Обновить данные</button>
+
+<!-- Основная статистика -->
+<div class="analytics-section">
+    <h2 class="section-title">📈 Основные показатели</h2>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_chats }}</div>
+            <div class="stat-label">Всего чатов (БД)</div>
+            {% if stats.avito_stats %}
+            <div class="stat-sublabel">В Avito: {{ stats.avito_stats.total_chats_avito }}</div>
+            {% endif %}
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.active_chats }}</div>
+            <div class="stat-label">Активных чатов</div>
+            {% if stats.avito_stats %}
+            <div class="stat-sublabel">В Avito: {{ stats.avito_stats.active_chats_avito }}</div>
+            {% endif %}
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.urgent_chats }}</div>
+            <div class="stat-label">Срочных чатов</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.unread_chats if stats.unread_chats else 0 }}</div>
+            <div class="stat-label">С непрочитанными</div>
+            {% if stats.avito_stats %}
+            <div class="stat-sublabel">Сообщений: {{ stats.avito_stats.unread_messages_avito }}</div>
+            {% endif %}
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.pool_chats if stats.pool_chats else 0 }}</div>
+            <div class="stat-label">В пуле</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.avg_response_time if stats.avg_response_time else 0 }}</div>
+            <div class="stat-label">Среднее время ответа (мин)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Статистика из Avito API -->
+{% if stats.avito_stats %}
+<div class="analytics-section">
+    <h2 class="section-title">🔗 Статистика из Avito API</h2>
+    
+    <div class="stats-grid">
+        {% if stats.avito_stats.blocked_chats_avito %}
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.avito_stats.blocked_chats_avito }}</div>
+            <div class="stat-label">Заблокированных чатов</div>
+            <span class="stat-badge badge-avito">Avito API</span>
+        </div>
+        {% endif %}
+        {% if stats.avito_stats.archived_chats_avito %}
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.avito_stats.archived_chats_avito }}</div>
+            <div class="stat-label">Архивных чатов</div>
+            <span class="stat-badge badge-avito">Avito API</span>
+        </div>
+        {% endif %}
+        {% if stats.avito_stats.shops_synced %}
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.avito_stats.shops_synced }}</div>
+            <div class="stat-label">Синхронизировано магазинов</div>
+            {% if stats.avito_stats.last_sync_time %}
+            <div class="stat-sublabel">Обновлено: {{ stats.avito_stats.last_sync_time[:19] }}</div>
+            {% endif %}
+            <span class="stat-badge badge-avito">Avito API</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if stats.avito_stats.account_stats %}
+    <div class="analytics-section" style="margin-top: 2rem;">
+        <h2 class="section-title">📊 Статистика аккаунта Avito (30 дней)</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.avito_stats.account_stats.total_views_30d }}</div>
+                <div class="stat-label">Просмотров объявлений</div>
+                <div class="stat-sublabel">Период: {{ stats.avito_stats.account_stats.period }}</div>
+                <span class="stat-badge badge-avito">Avito API</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.avito_stats.account_stats.total_contacts_30d }}</div>
+                <div class="stat-label">Контактов (звонки/сообщения)</div>
+                <div class="stat-sublabel">Период: {{ stats.avito_stats.account_stats.period }}</div>
+                <span class="stat-badge badge-avito">Avito API</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.avito_stats.account_stats.total_favorites_30d }}</div>
+                <div class="stat-label">Добавлено в избранное</div>
+                <div class="stat-sublabel">Период: {{ stats.avito_stats.account_stats.period }}</div>
+                <span class="stat-badge badge-avito">Avito API</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Статистика по пользователям и магазинам -->
+<div class="analytics-section">
+    <h2 class="section-title">👥 Пользователи и магазины</h2>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_users }}</div>
+            <div class="stat-label">Всего пользователей</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_managers }}</div>
+            <div class="stat-label">Менеджеров</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_shops }}</div>
+            <div class="stat-label">Магазинов</div>
+            {% if stats.shops_with_keys %}
+            <div class="stat-sublabel">С ключами: {{ stats.shops_with_keys }}</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Аналитика по магазинам -->
+<div class="analytics-section">
+    <h2 class="section-title">🏪 Аналитика по магазинам</h2>
+    <div class="analytics-table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Магазин</th>
+                    <th>Чатов</th>
+                    <th>Активные</th>
+                    <th>Срочные</th>
+                    <th>Непрочитанные</th>
+                    <th>Среднее время ответа (мин)</th>
+                    <th>Webhook</th>
+                    <th>Ключи</th>
+                </tr>
+            </thead>
+            <tbody id="shops-analytics-body">
+                <tr><td colspan="8" class="loading">Загрузка...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function loadAnalytics() {
+        try {
+            const btn = event?.target;
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳ Загрузка...';
+            }
+
+            // Загружаем аналитику по магазинам
+            await loadShopsAnalytics();
+            
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🔄 Обновить данные';
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки аналитики:', error);
+            if (event?.target) {
+                event.target.disabled = false;
+                event.target.textContent = '🔄 Обновить данные';
+            }
+        }
+    }
+
+    async function loadShopsAnalytics() {
+        const body = document.getElementById('shops-analytics-body');
+        if (!body) return;
+        
+        try {
+            const resp = await fetch('/api/shops/analytics', {
+                headers: {
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!resp.ok) {
+                throw new Error('Failed to load shops analytics');
+            }
+            
+            const data = await resp.json();
+            
+            if (!Array.isArray(data) || data.length === 0) {
+                body.innerHTML = '<tr><td colspan="8" class="loading">Нет данных о магазинах</td></tr>';
+                return;
+            }
+            
+            body.innerHTML = data.map(item => {
+                const webhook = item.webhook_registered ? '<span class="status-ok">✅</span>' : '<span class="status-warning">⚠️</span>';
+                const creds = item.token_status || item.avito_status || 'unknown';
+                const credsClass = creds === 'ok' ? 'status-ok' : 'status-error';
+                const credsLabel = creds === 'ok' ? '✅ OK' : (creds || '—');
+                const avg = item.avg_response_timer ? Number(item.avg_response_timer).toFixed(1) : '—';
+                
+                return `
+                    <tr>
+                        <td><strong>${item.name || 'Без названия'}</strong></td>
+                        <td>${item.total_chats || 0}</td>
+                        <td>${item.active_chats || 0}</td>
+                        <td>${item.urgent_chats || 0}</td>
+                        <td>${item.chats_with_unread || 0}</td>
+                        <td>${avg}</td>
+                        <td>${webhook}</td>
+                        <td class="${credsClass}">${credsLabel}</td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (e) {
+            console.error('Ошибка загрузки аналитики по магазинам:', e);
+            body.innerHTML = '<tr><td colspan="8" class="loading" style="color: var(--error, #ef4444);">Ошибка загрузки данных</td></tr>';
+        }
+    }
+
+    // Загружаем данные при открытии страницы
+    loadShopsAnalytics();
+</script>
+{% endblock %}

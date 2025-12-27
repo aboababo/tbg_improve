@@ -1,0 +1,30 @@
+# .htaccess для Beget - проксирование на Flask приложение
+# Разместите этот файл в корневой директории сайта osagaming.store
+
+# Включаем mod_rewrite
+RewriteEngine On
+
+# Проксирование всех запросов на Gunicorn (порт 5000)
+# Исключаем статические файлы и существующие файлы
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/static/
+RewriteRule ^(.*)$ http://127.0.0.1:5000/$1 [P,L]
+
+# Альтернативный вариант (если первый не работает):
+# Раскомментируйте эти строки и закомментируйте выше, если нужно:
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteCond %{REQUEST_FILENAME} !-d
+# RewriteRule ^(.*)$ http://127.0.0.1:5000/$1 [P,L]
+
+# Настройки для статических файлов (опционально)
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 30 days"
+    ExpiresByType application/javascript "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/jpg "access plus 30 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+</IfModule>

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}OSAGAMING CRM{% endblock %}</title>
+    {% block early_scripts %}{% endblock %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --radius: 10px;
+        }
+
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --bg-secondary: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+            --gradient-primary-hover: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f172a;
+            --bg-secondary: #1e293b;
+            --card: #1e293b;
+            --border: #334155;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --primary: #818cf8;
+            --primary-hover: #a5b4fc;
+            --success: #34d399;
+            --danger: #f87171;
+            --warning: #fbbf24;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+            --gradient-primary: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c084fc 100%);
+            --gradient-primary-hover: linear-gradient(135deg, #a5b4fc 0%, #c4b5fd 50%, #d8b4fe 100%);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.04), transparent 26%), radial-gradient(circle at 80% 0%, rgba(16, 185, 129, 0.04), transparent 22%), var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            transition: background 0.25s ease, color 0.25s ease;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .header {
+            background: color-mix(in srgb, var(--card) 85%, transparent);
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+            padding: 0.85rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 120;
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-content {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text);
+            text-decoration: none;
+            letter-spacing: -0.02em;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            padding: 0.55rem 0.85rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: calc(var(--radius) - 4px);
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.18s ease;
+            position: relative;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-secondary);
+            color: var(--text);
+            transform: translateY(-1px);
+        }
+
+        .nav-link.active {
+            background: var(--gradient-primary);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .nav-link.active::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 2px 2px 0 0;
+        }
+
+        .main-content {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.75rem 1.25rem 2.5rem;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+            border-radius: var(--radius);
+            padding: 1.35rem;
+            box-shadow: var(--shadow-lg);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-xl);
+            transform: translateY(-2px);
+        }
+
+        .card + .card {
+            margin-top: 1rem;
+        }
+
+        .btn {
+            padding: 0.65rem 1.1rem;
+            border: 1px solid transparent;
+            border-radius: calc(var(--radius) - 2px);
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--text-muted);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover {
+            color: var(--text);
+            border-color: var(--text);
+        }
+
+        .input {
+            width: 100%;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) - 2px);
+            background: var(--card);
+            color: var(--text);
+            font-size: 0.94rem;
+            transition: all 0.18s ease;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+        }
+
+        .theme-toggle {
+            padding: 0.4rem 0.55rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) - 4px);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 1.15rem;
+            transition: all 0.18s ease;
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-secondary);
+            transform: translateY(-1px);
+        }
+
+        h1, h2, h3 {
+            letter-spacing: -0.02em;
+        }
+
+        h1 { font-size: 1.8rem; font-weight: 800; }
+        h2 { font-size: 1.35rem; font-weight: 700; }
+        h3 { font-size: 1.1rem; font-weight: 700; }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .muted { color: var(--text-muted); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: var(--card);
+            box-shadow: var(--shadow);
+        }
+
+        th, td {
+            padding: 0.85rem 0.9rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+
+        th {
+            background: var(--bg-secondary);
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.6rem;
+            border-radius: 999px;
+            background: var(--bg-secondary);
+            color: var(--text);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.4rem 0.75rem;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--primary) 12%, transparent);
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .grid.two { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+        .grid.three { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+        .empty-state {
+            padding: 2.25rem 1.5rem;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-secondary);
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .stack { display: flex; flex-direction: column; gap: 0.75rem; }
+    </style>
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    {% set user_role = (user.get('role') or '').strip() if user and user.get('role') else '' %}
+    {% if not hide_header %}
+    <header class="header">
+        <div class="header-content">
+            <a href="/{% if user %}{% if user_role == 'admin' or user_role == 'super_admin' %}admin/dashboard{% else %}manager/dashboard{% endif %}{% else %}/{% endif %}" class="logo">
+                OSAGAMING CRM
+            </a>
+            {% if user %}
+            <nav class="nav">
+                <span style="color: var(--text-muted); font-size: 0.875rem;">
+                    {% if user_role == 'admin' or user_role == 'super_admin' %}👑{% else %}👨‍💼{% endif %} {{ user.get('username', 'Пользователь') }}
+                </span>
+                {% if tab_visibility.get('dashboard', True) %}
+                <a href="/{% if user_role == 'admin' or user_role == 'super_admin' %}admin/dashboard{% else %}manager/dashboard{% endif %}" class="nav-link">📊 Дашборд</a>
+                {% endif %}
+                {% if tab_visibility.get('chats', True) %}
+                <a href="/chats" class="nav-link">💬 Чаты</a>
+                {% endif %}
+                {% if tab_visibility.get('buyout', True) %}
+                <a href="/buyout" class="nav-link">🛒 Выкуп</a>
+                {% endif %}
+                {% if tab_visibility.get('deliveries', True) %}
+                <a href="/deliveries" class="nav-link">🚚 Доставки</a>
+                {% endif %}
+                {# Вкладка "Быстрые ответы" убрана - теперь доступна через модальное окно в чатах #}
+                {% if tab_visibility.get('shops', False) %}
+                <a href="/shops" class="nav-link">🏪 Магазины</a>
+                {% endif %}
+                {% if tab_visibility.get('analytics', False) %}
+                <a href="/analytics" class="nav-link">📈 Аналитика</a>
+                {% endif %}
+                {% if tab_visibility.get('settings', False) %}
+                <a href="/settings" class="nav-link">⚙️ Настройки</a>
+                {% endif %}
+                <button class="theme-toggle" onclick="toggleTheme()" title="Переключить тему">🌙</button>
+                <a href="/logout" class="nav-link">🚪 Выход</a>
+            </nav>
+            {% endif %}
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Загрузка темы из localStorage
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.querySelector('.theme-toggle');
+            if (icon) {
+                icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+            }
+        }
+
+        // Автоматическое выделение активной вкладки в навигации
+        (function() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            navLinks.forEach(link => {
+                try {
+                    const linkPath = new URL(link.href).pathname;
+                    // Убираем класс active со всех ссылок
+                    link.classList.remove('active');
+                    
+                    // Проверяем, соответствует ли путь ссылки текущему пути
+                    if (currentPath === linkPath) {
+                        link.classList.add('active');
+                    } else if (linkPath !== '/' && currentPath.startsWith(linkPath)) {
+                        // Для вложенных путей (например, /admin/dashboard при текущем /admin/dashboard)
+                        link.classList.add('active');
+                    } else if (linkPath.includes('/dashboard') && currentPath.includes('/dashboard')) {
+                        // Специальная обработка для дашбордов
+                        link.classList.add('active');
+                    }
+                } catch (e) {
+                    // Игнорируем ошибки парсинга URL
+                    console.warn('Ошибка обработки ссылки:', e);
+                }
+            });
+        })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

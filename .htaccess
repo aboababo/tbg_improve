@@ -1,0 +1,12 @@
+# .htaccess для Beget - Passenger конфигурация
+# Разместите этот файл в корневой директории сайта
+
+PassengerEnabled On
+PassengerPython /usr/bin/python3
+
+# Включаем детальные страницы ошибок для отладки
+# Согласно: https://www.phusionpassenger.com/library/config/apache/reference/#passengerfriendlyerrorpages
+PassengerFriendlyErrorPages on
+
+# Если используется виртуальное окружение или другой Python, укажите путь:
+# PassengerPython /home/d/dannnnay/osagaming.store/venv/bin/python3

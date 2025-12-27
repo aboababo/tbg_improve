@@ -1,0 +1,2348 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки - OSAGAMING CRM{% endblock %}
+
+{% block early_scripts %}
+    <script>
+        // КРИТИЧЕСКИ ВАЖНО: Определяем функции в HEAD, чтобы они были доступны ДО рендеринга body
+        (function() {
+            // Функция экранирования HTML для безопасности
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            window.escapeHtml = escapeHtml;
+            window.showCreateShopModal = function() {
+                console.log('[GLOBAL] showCreateShopModal вызвана');
+                try {
+                    const modal = document.getElementById('create-shop-modal');
+                    console.log('[GLOBAL] Модальное окно:', modal);
+                    if (!modal) {
+                        console.error('[ERROR] Модальное окно не найдено!');
+                        alert('Ошибка: модальное окно не найдено. Проверьте консоль браузера (F12).');
+                        return;
+                    }
+                    console.log('[GLOBAL] Открываем модальное окно');
+                    modal.style.display = 'flex';
+                    modal.style.zIndex = '99999';
+                    modal.classList.add('show');
+                    
+                    setTimeout(() => {
+                        const nameInput = document.getElementById('new-shop-name');
+                        if (nameInput) {
+                            nameInput.focus();
+                        }
+                    }, 100);
+                } catch (e) {
+                    console.error('[ERROR] Ошибка в showCreateShopModal:', e);
+                    alert('Ошибка при открытии модального окна: ' + e.message);
+                }
+            };
+            
+            window.closeCreateShopModal = function() {
+                console.log('[GLOBAL] closeCreateShopModal вызвана');
+                const modal = document.getElementById('create-shop-modal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.classList.remove('show');
+                }
+                const fields = ['new-shop-name', 'new-shop-url', 'new-shop-api-key', 'new-shop-client-id', 'new-shop-client-secret', 'new-shop-user-id'];
+                fields.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+                const activeCheckbox = document.getElementById('new-shop-active');
+                if (activeCheckbox) activeCheckbox.checked = true;
+                const statusEl = document.getElementById('create-shop-status');
+                if (statusEl) statusEl.textContent = '';
+            };
+            
+            window.toggleSecret = function(inputId, buttonEl) {
+                const input = document.getElementById(inputId);
+                if (!input) return;
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    buttonEl.textContent = '🙈';
+                } else {
+                    input.type = 'password';
+                    buttonEl.textContent = '👁';
+                }
+            };
+            
+            window.showEditShopModal = function(shop) {
+                console.log('[GLOBAL] showEditShopModal вызвана для магазина:', shop);
+                try {
+                    const modal = document.getElementById('edit-shop-modal');
+                    console.log('[GLOBAL] Модальное окно редактирования:', modal);
+                    if (!modal) {
+                        console.error('[ERROR] Модальное окно редактирования не найдено!');
+                        alert('Ошибка: модальное окно редактирования не найдено. Проверьте консоль браузера (F12).');
+                        return;
+                    }
+                    
+                    // Заполняем поля данными магазина
+                    if (shop) {
+                        document.getElementById('edit-shop-id').value = shop.id || '';
+                        document.getElementById('edit-shop-name').value = shop.name || '';
+                        document.getElementById('edit-shop-url').value = shop.shop_url || '';
+                        document.getElementById('edit-shop-api-key').value = shop.api_key || '';
+                        document.getElementById('edit-shop-active').checked = shop.is_active !== false;
+                        document.getElementById('edit-shop-client-id').value = shop.client_id || '';
+                        document.getElementById('edit-shop-client-secret').value = shop.client_secret || '';
+                        document.getElementById('edit-shop-user-id').value = shop.user_id || '';
+                    }
+                    
+                    console.log('[GLOBAL] Открываем модальное окно редактирования');
+                    modal.style.display = 'flex';
+                    modal.style.zIndex = '99999';
+                    modal.classList.add('show');
+                    
+                    setTimeout(() => {
+                        const nameInput = document.getElementById('edit-shop-name');
+                        if (nameInput) {
+                            nameInput.focus();
+                        }
+                    }, 100);
+                } catch (e) {
+                    console.error('[ERROR] Ошибка в showEditShopModal:', e);
+                    alert('Ошибка при открытии модального окна редактирования: ' + e.message);
+                }
+            };
+            
+            window.closeEditShopModal = function() {
+                console.log('[GLOBAL] closeEditShopModal вызвана');
+                const modal = document.getElementById('edit-shop-modal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.classList.remove('show');
+                }
+                const statusEl = document.getElementById('edit-shop-status');
+                if (statusEl) statusEl.textContent = '';
+            };
+            
+            window.createShop = async function() {
+                console.log('[CREATE SHOP] Функция createShop вызвана');
+                console.log('[CREATE SHOP] Проверка элементов формы...');
+                
+                const nameEl = document.getElementById('new-shop-name');
+                const shopUrlEl = document.getElementById('new-shop-url');
+                const apiKeyEl = document.getElementById('new-shop-api-key');
+                const isActiveEl = document.getElementById('new-shop-active');
+                const clientIdEl = document.getElementById('new-shop-client-id');
+                const clientSecretEl = document.getElementById('new-shop-client-secret');
+                const userIdEl = document.getElementById('new-shop-user-id');
+                const statusEl = document.getElementById('create-shop-status');
+                
+                if (!nameEl || !shopUrlEl || !statusEl) {
+                    console.error('[CREATE SHOP] Не найдены необходимые элементы формы');
+                    console.error('[CREATE SHOP] nameEl:', nameEl);
+                    console.error('[CREATE SHOP] shopUrlEl:', shopUrlEl);
+                    console.error('[CREATE SHOP] statusEl:', statusEl);
+                    alert('Ошибка: форма не найдена. Проверьте консоль браузера.');
+                    return;
+                }
+                
+                const name = nameEl.value.trim();
+                const shopUrl = shopUrlEl.value.trim();
+                const apiKey = apiKeyEl ? apiKeyEl.value.trim() : '';
+                const isActive = isActiveEl ? isActiveEl.checked : true;
+                const clientId = clientIdEl ? clientIdEl.value.trim() : '';
+                const clientSecret = clientSecretEl ? clientSecretEl.value.trim() : '';
+                const userId = userIdEl ? userIdEl.value.trim() : '';
+
+                console.log('[CREATE SHOP] Данные формы:');
+                console.log('[CREATE SHOP]   name:', name);
+                console.log('[CREATE SHOP]   shopUrl:', shopUrl);
+                console.log('[CREATE SHOP]   apiKey:', apiKey ? '***' : '(пусто)');
+                console.log('[CREATE SHOP]   isActive:', isActive);
+                console.log('[CREATE SHOP]   clientId:', clientId ? '***' : '(пусто)');
+                console.log('[CREATE SHOP]   clientSecret:', clientSecret ? '***' : '(пусто)');
+                console.log('[CREATE SHOP]   userId:', userId ? '***' : '(пусто)');
+
+                if (!name || !shopUrl) {
+                    console.warn('[CREATE SHOP] Валидация не пройдена: не заполнены обязательные поля');
+                    statusEl.textContent = '❌ Заполните название и URL магазина';
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                    return;
+                }
+
+                if (!shopUrl.startsWith('http://') && !shopUrl.startsWith('https://')) {
+                    statusEl.textContent = '❌ URL должен начинаться с http:// или https://';
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                    return;
+                }
+
+                // Проверяем, что если указаны ключи, то все три поля заполнены
+                const hasKeys = clientId || clientSecret || userId;
+                if (hasKeys && (!clientId || !clientSecret || !userId)) {
+                    statusEl.textContent = '❌ Если указываете ключи, заполните все три поля (Client ID, Client Secret, User ID)';
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                    return;
+                }
+
+                statusEl.textContent = '⏳ Создание магазина...';
+                statusEl.style.color = 'var(--text-muted)';
+
+                try {
+                    console.log('[CREATE SHOP] Отправка запроса на создание магазина...');
+                    // Сначала создаем магазин
+                    const resp = await fetch('/api/shops', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            name: name,
+                            shop_url: shopUrl,
+                            api_key: apiKey || null,
+                            is_active: isActive
+                        })
+                    });
+
+                    const contentType = resp.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await resp.text();
+                        console.error('[CREATE SHOP] Получен не-JSON ответ при создании магазина:', text.substring(0, 200));
+                        statusEl.textContent = '❌ Ошибка: сервер вернул не-JSON ответ';
+                        statusEl.style.color = 'var(--error, #ef4444)';
+                        return;
+                    }
+
+                    const result = await resp.json();
+                    console.log('[CREATE SHOP] Ответ сервера:', result);
+                    console.log('[CREATE SHOP] Статус ответа:', resp.status, resp.ok);
+                    
+                    if (resp.ok && result.success) {
+                        const shopId = result.id;
+                        console.log('[CREATE SHOP] Магазин создан успешно, ID:', shopId);
+                        
+                        // Если указаны ключи, сохраняем их сразу
+                        if (hasKeys && clientId && clientSecret && userId) {
+                            statusEl.textContent = '⏳ Сохранение ключей...';
+                            
+                            const credResp = await fetch(`/api/shops/${shopId}/credentials`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
+                                credentials: 'same-origin',
+                                body: JSON.stringify({
+                                    client_id: clientId,
+                                    client_secret: clientSecret,
+                                    user_id: userId
+                                })
+                            });
+                            
+                            if (!credResp.ok) {
+                                const credResult = await credResp.json().catch(() => ({}));
+                                statusEl.textContent = `✅ Магазин создан, но не удалось сохранить ключи: ${credResult.error || 'Ошибка'}`;
+                                statusEl.style.color = 'var(--warning, #f59e0b)';
+                            } else {
+                                statusEl.textContent = '✅ Магазин создан и ключи сохранены!';
+                                statusEl.style.color = 'var(--success, #10b981)';
+                            }
+                        } else {
+                            statusEl.textContent = '✅ Магазин успешно создан!';
+                            statusEl.style.color = 'var(--success, #10b981)';
+                        }
+                        
+                        // Обновляем список магазинов
+                        console.log('[CREATE SHOP] Обновление списка магазинов...');
+                        if (typeof window.loadAvitoShops === 'function') {
+                            console.log('[CREATE SHOP] Вызываем loadAvitoShops()...');
+                            try {
+                                await window.loadAvitoShops();
+                                console.log('[CREATE SHOP] loadAvitoShops() выполнен успешно');
+                            } catch (err) {
+                                console.error('[CREATE SHOP] Ошибка при обновлении списка магазинов:', err);
+                            }
+                        } else {
+                            console.warn('[CREATE SHOP] Функция loadAvitoShops не найдена');
+                        }
+                        
+                        // Выбираем созданный магазин
+                        setTimeout(() => {
+                            console.log('[CREATE SHOP] Выбор созданного магазина в списке...');
+                            const select = document.getElementById('avito-shop-select');
+                            if (select && shopId) {
+                                select.value = shopId;
+                                if (typeof window.populateAvitoFields === 'function') {
+                                    window.populateAvitoFields(shopId);
+                                }
+                            }
+                            console.log('[CREATE SHOP] Закрытие модального окна...');
+                            if (typeof window.closeCreateShopModal === 'function') {
+                                window.closeCreateShopModal();
+                            } else {
+                                console.warn('[CREATE SHOP] Функция closeCreateShopModal не найдена');
+                            }
+                        }, 1500);
+                    } else {
+                        const errorMsg = result.error || 'Не удалось создать магазин';
+                        console.error('[CREATE SHOP] Ошибка создания магазина:', errorMsg, result);
+                        statusEl.textContent = `❌ ${errorMsg}`;
+                        statusEl.style.color = 'var(--error, #ef4444)';
+                    }
+                } catch (e) {
+                    console.error('[CREATE SHOP] Исключение при создании магазина:', e);
+                    console.error('[CREATE SHOP] Stack trace:', e.stack);
+                    statusEl.textContent = '❌ Ошибка: ' + (e.message || String(e));
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                }
+            };
+            
+            window.saveAvitoCredentials = async function() {
+                console.log('[SAVE CREDENTIALS] Функция saveAvitoCredentials вызвана');
+                const shopId = document.getElementById('avito-shop-select')?.value;
+                if (!shopId) {
+                    const statusEl = document.getElementById('avito-shop-status');
+                    if (statusEl) {
+                        statusEl.textContent = '❌ Выберите магазин';
+                        statusEl.style.color = 'var(--error, #ef4444)';
+                    } else {
+                        alert('Выберите магазин');
+                    }
+                    return;
+                }
+                const payload = {
+                    client_id: document.getElementById('avito-client-id').value.trim(),
+                    client_secret: document.getElementById('avito-client-secret').value.trim(),
+                    user_id: document.getElementById('avito-user-id').value.trim()
+                };
+                if (!payload.client_id || !payload.client_secret || !payload.user_id) {
+                    const statusEl = document.getElementById('avito-shop-status');
+                    if (statusEl) {
+                        statusEl.textContent = '❌ Заполните все поля ключей';
+                        statusEl.style.color = 'var(--error, #ef4444)';
+                    } else {
+                        alert('Заполните все поля ключей');
+                    }
+                    return;
+                }
+                try {
+                    const statusEl = document.getElementById('avito-shop-status');
+                    if (statusEl) {
+                        statusEl.textContent = '⏳ Сохранение...';
+                        statusEl.style.color = 'var(--text-muted)';
+                    }
+                    
+                    const resp = await fetch(`/api/shops/${shopId}/credentials`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const contentType = resp.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await resp.text();
+                        console.error('[SAVE CREDENTIALS] Получен не-JSON ответ:', text.substring(0, 200));
+                        if (statusEl) {
+                            statusEl.textContent = '❌ Ошибка: сервер вернул не-JSON ответ';
+                            statusEl.style.color = 'var(--error, #ef4444)';
+                        }
+                        return;
+                    }
+                    
+                    const result = await resp.json();
+                    if (resp.ok) {
+                        if (statusEl) {
+                            statusEl.textContent = result.message || '✅ Ключи сохранены';
+                            statusEl.style.color = 'var(--success, #10b981)';
+                        }
+                        // Небольшая задержка перед обновлением, чтобы БД успела обновиться
+                        setTimeout(async () => {
+                            if (typeof window.loadAvitoShops === 'function') {
+                                await window.loadAvitoShops();
+                            }
+                            if (typeof populateAvitoFields === 'function') {
+                                if (typeof window.populateAvitoFields === 'function') {
+                                window.populateAvitoFields(shopId);
+                            }
+                            }
+                        }, 300);
+                    } else {
+                        const errorMsg = result.error || 'Не удалось сохранить';
+                        console.error('[SAVE CREDENTIALS] Ошибка сохранения ключей:', errorMsg, result);
+                        if (statusEl) {
+                            statusEl.textContent = `❌ ${errorMsg}`;
+                            statusEl.style.color = 'var(--error, #ef4444)';
+                        }
+                    }
+                } catch (e) {
+                    console.error('[SAVE CREDENTIALS] Исключение при сохранении ключей:', e);
+                    const statusEl = document.getElementById('avito-shop-status');
+                    if (statusEl) {
+                        statusEl.textContent = '❌ Ошибка сохранения ключей: ' + (e.message || String(e));
+                        statusEl.style.color = 'var(--error, #ef4444)';
+                    }
+                }
+            };
+            
+            window.updateShop = async function() {
+                console.log('[UPDATE SHOP] Функция updateShop вызвана');
+                const shopId = document.getElementById('edit-shop-id').value;
+                const nameEl = document.getElementById('edit-shop-name');
+                const shopUrlEl = document.getElementById('edit-shop-url');
+                const apiKeyEl = document.getElementById('edit-shop-api-key');
+                const isActiveEl = document.getElementById('edit-shop-active');
+                const clientIdEl = document.getElementById('edit-shop-client-id');
+                const clientSecretEl = document.getElementById('edit-shop-client-secret');
+                const userIdEl = document.getElementById('edit-shop-user-id');
+                const statusEl = document.getElementById('edit-shop-status');
+                
+                if (!shopId || !nameEl || !shopUrlEl || !statusEl) {
+                    console.error('[UPDATE SHOP] Не найдены необходимые элементы формы');
+                    alert('Ошибка: форма не найдена. Проверьте консоль браузера.');
+                    return;
+                }
+                
+                const name = nameEl.value.trim();
+                const shopUrl = shopUrlEl.value.trim();
+                const apiKey = apiKeyEl ? apiKeyEl.value.trim() : '';
+                const isActive = isActiveEl ? isActiveEl.checked : true;
+                const clientId = clientIdEl ? clientIdEl.value.trim() : '';
+                const clientSecret = clientSecretEl ? clientSecretEl.value.trim() : '';
+                const userId = userIdEl ? userIdEl.value.trim() : '';
+
+                if (!name || !shopUrl) {
+                    statusEl.textContent = '❌ Заполните название и URL магазина';
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                    return;
+                }
+
+                if (!shopUrl.startsWith('http://') && !shopUrl.startsWith('https://')) {
+                    statusEl.textContent = '❌ URL должен начинаться с http:// или https://';
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                    return;
+                }
+
+                const hasKeys = clientId || clientSecret || userId;
+                if (hasKeys && (!clientId || !clientSecret || !userId)) {
+                    statusEl.textContent = '❌ Если указываете ключи, заполните все три поля (Client ID, Client Secret, User ID)';
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                    return;
+                }
+
+                statusEl.textContent = '⏳ Сохранение изменений...';
+                statusEl.style.color = 'var(--text-muted)';
+
+                try {
+                    console.log('[UPDATE SHOP] Отправка запроса на обновление магазина...');
+                    const resp = await fetch(`/api/shops/${shopId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            name: name,
+                            shop_url: shopUrl,
+                            api_key: apiKey || null,
+                            is_active: isActive
+                        })
+                    });
+
+                    const contentType = resp.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await resp.text();
+                        console.error('[UPDATE SHOP] Получен не-JSON ответ:', text.substring(0, 200));
+                        statusEl.textContent = '❌ Ошибка: сервер вернул не-JSON ответ';
+                        statusEl.style.color = 'var(--error, #ef4444)';
+                        return;
+                    }
+
+                    const result = await resp.json();
+                    console.log('[UPDATE SHOP] Ответ сервера:', result);
+                    
+                    if (resp.ok && result.success) {
+                        // Если указаны ключи, сохраняем их
+                        if (hasKeys && clientId && clientSecret && userId) {
+                            statusEl.textContent = '⏳ Сохранение ключей...';
+                            
+                            const credResp = await fetch(`/api/shops/${shopId}/credentials`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
+                                credentials: 'same-origin',
+                                body: JSON.stringify({
+                                    client_id: clientId,
+                                    client_secret: clientSecret,
+                                    user_id: userId
+                                })
+                            });
+                            
+                            if (!credResp.ok) {
+                                const credResult = await credResp.json().catch(() => ({}));
+                                statusEl.textContent = `✅ Магазин обновлен, но не удалось сохранить ключи: ${credResult.error || 'Ошибка'}`;
+                                statusEl.style.color = 'var(--warning, #f59e0b)';
+                            } else {
+                                statusEl.textContent = '✅ Магазин и ключи успешно обновлены!';
+                                statusEl.style.color = 'var(--success, #10b981)';
+                            }
+                        } else {
+                            statusEl.textContent = '✅ Магазин успешно обновлен!';
+                            statusEl.style.color = 'var(--success, #10b981)';
+                        }
+                        
+                        // Обновляем список магазинов
+                        if (typeof window.loadAvitoShops === 'function') {
+                            await window.loadAvitoShops();
+                        }
+                        
+                        // Закрываем модальное окно через 1.5 секунды
+                        setTimeout(() => {
+                            if (typeof window.closeEditShopModal === 'function') {
+                                window.closeEditShopModal();
+                            }
+                        }, 1500);
+                    } else {
+                        const errorMsg = result.error || 'Не удалось обновить магазин';
+                        console.error('[UPDATE SHOP] Ошибка обновления магазина:', errorMsg, result);
+                        statusEl.textContent = `❌ ${errorMsg}`;
+                        statusEl.style.color = 'var(--error, #ef4444)';
+                    }
+                } catch (e) {
+                    console.error('[UPDATE SHOP] Исключение при обновлении магазина:', e);
+                    statusEl.textContent = '❌ Ошибка: ' + (e.message || String(e));
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                }
+            };
+            
+            // Определяем loadAvitoShops глобально в HEAD
+            // Также создаем глобальную переменную для хранения списка магазинов
+            window.avitoShops = [];
+            
+            window.loadAvitoShops = async function() {
+                console.log('[LOAD SHOPS] Функция loadAvitoShops вызвана (глобальная версия из HEAD)');
+                console.log('[LOAD SHOPS] Поиск элемента avito-shop-select...');
+                const select = document.getElementById('avito-shop-select');
+                if (!select) {
+                    console.error('[LOAD SHOPS] ❌ Элемент avito-shop-select не найден!');
+                    console.error('[LOAD SHOPS] Проверьте, что вы залогинены как admin или super_admin');
+                    console.error('[LOAD SHOPS] Проверьте, что секция Avito API отображается на странице');
+                    // Попробуем найти элемент через небольшую задержку (на случай асинхронной загрузки)
+                    setTimeout(async () => {
+                        const delayedSelect = document.getElementById('avito-shop-select');
+                        if (delayedSelect) {
+                            console.log('[LOAD SHOPS] Элемент найден с задержкой, повторная попытка загрузки...');
+                            await window.loadAvitoShops();
+                        } else {
+                            console.error('[LOAD SHOPS] Элемент все еще не найден после задержки');
+                        }
+                    }, 500);
+                    return;
+                }
+                console.log('[LOAD SHOPS] ✅ Элемент select найден:', select);
+                select.innerHTML = '<option value="">Загрузка...</option>';
+                try {
+                    console.log('[LOAD SHOPS] Отправка запроса на /api/shops...');
+                    const resp = await fetch('/api/shops', {
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin'
+                    });
+                    console.log('[LOAD SHOPS] Ответ получен, статус:', resp.status, resp.ok);
+                    if (!resp.ok) {
+                        const errorText = await resp.text();
+                        console.error('[LOAD SHOPS] Ошибка ответа:', errorText);
+                        throw new Error('Не удалось загрузить магазины: ' + resp.status);
+                    }
+                    // Сохраняем в глобальную переменную
+                    window.avitoShops = await resp.json();
+                    console.log('[LOAD SHOPS] Магазины получены:', window.avitoShops);
+                    console.log('[LOAD SHOPS] Количество магазинов:', window.avitoShops.length);
+                    if (!Array.isArray(window.avitoShops) || window.avitoShops.length === 0) {
+                        console.warn('[LOAD SHOPS] Магазины не найдены или не массив');
+                        select.innerHTML = '<option value="">Магазины не найдены</option>';
+                        return;
+                    }
+                    const currentValue = select.value; // Сохраняем текущее значение
+                    console.log('[LOAD SHOPS] Создаем опции для', window.avitoShops.length, 'магазинов');
+                    select.innerHTML = '<option value="">-- Выберите магазин --</option>' + 
+                        window.avitoShops.map(shop => {
+                            const status = shop.avito_status === 'ok' ? ' ✅' : ' ⚠️';
+                            const name = shop.name || 'Без названия';
+                            console.log('[LOAD SHOPS] Добавляем магазин:', shop.id, name);
+                            return `<option value="${shop.id}">${name}${status}</option>`;
+                        }).join('');
+                    console.log('[LOAD SHOPS] Опции созданы, HTML длина:', select.innerHTML.length);
+                    
+                    // Восстанавливаем выбранное значение, если оно есть
+                    if (currentValue) {
+                        select.value = currentValue;
+                    }
+                    
+                    // Удаляем старый обработчик, если есть
+                    const newSelect = select.cloneNode(true);
+                    select.parentNode.replaceChild(newSelect, select);
+                    const updatedSelect = document.getElementById('avito-shop-select');
+                    
+                    // Добавляем новый обработчик
+                    updatedSelect.addEventListener('change', (e) => {
+                        if (typeof populateAvitoFields === 'function') {
+                            if (typeof window.populateAvitoFields === 'function') {
+                                window.populateAvitoFields(e.target.value);
+                            }
+                        }
+                        // Включаем/выключаем кнопку удаления
+                        const deleteBtn = document.getElementById('delete-shop-btn');
+                        if (deleteBtn) {
+                            deleteBtn.disabled = !e.target.value;
+                        }
+                    });
+                    
+                    // Заполняем поля для выбранного магазина
+                    if (updatedSelect.value) {
+                        if (typeof populateAvitoFields === 'function') {
+                            populateAvitoFields(updatedSelect.value);
+                        }
+                        const deleteBtn = document.getElementById('delete-shop-btn');
+                        if (deleteBtn) deleteBtn.disabled = false;
+                    } else if (window.avitoShops.length > 0) {
+                        // Если ничего не выбрано, но есть магазины, выбираем первый
+                        updatedSelect.value = window.avitoShops[0].id;
+                        if (typeof populateAvitoFields === 'function') {
+                            if (typeof window.populateAvitoFields === 'function') {
+                                window.populateAvitoFields(window.avitoShops[0].id);
+                            }
+                        }
+                        const deleteBtn = document.getElementById('delete-shop-btn');
+                        if (deleteBtn) deleteBtn.disabled = false;
+                    }
+                } catch (e) {
+                    console.error('[LOAD SHOPS] Ошибка при загрузке магазинов:', e);
+                    console.error('[LOAD SHOPS] Stack trace:', e.stack);
+                    const select = document.getElementById('avito-shop-select');
+                    if (select) {
+                        select.innerHTML = '<option value="">Ошибка загрузки магазинов: ' + (e.message || String(e)) + '</option>';
+                    }
+                }
+            };
+            
+            // Функция создания пользователя (доступна только для админов)
+            window.createUser = async function createUser() {
+                // Проверяем права на клиенте (дополнительная проверка)
+                {% if user.get('role') == 'admin' or user.get('role') == 'super_admin' %}
+                const roleEl = document.getElementById('new-user-role');
+                const usernameEl = document.getElementById('new-user-username');
+                const emailEl = document.getElementById('new-user-email');
+                const firstNameEl = document.getElementById('new-user-first-name');
+                const lastNameEl = document.getElementById('new-user-last-name');
+                const salaryEl = document.getElementById('new-user-salary');
+                const statusEl = document.getElementById('create-user-status');
+                
+                // Проверяем, что элементы существуют (форма видна только для админов)
+                if (!roleEl || !usernameEl || !emailEl || !statusEl) {
+                    console.error('[CREATE USER] Элементы формы не найдены. Возможно, нет прав доступа.');
+                    return;
+                }
+                
+                const role = roleEl.value;
+                const username = usernameEl.value.trim();
+                const email = emailEl.value.trim();
+                const firstName = firstNameEl ? firstNameEl.value.trim() : '';
+                const lastName = lastNameEl ? lastNameEl.value.trim() : '';
+                const salary = parseFloat(salaryEl.value) || 0;
+
+                if (!username || !email) {
+                    statusEl.textContent = '❌ Заполните имя пользователя и email';
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                    return;
+                }
+
+                statusEl.textContent = '⏳ Создание пользователя...';
+                statusEl.style.color = 'var(--text-muted)';
+
+                try {
+                    console.log('[CREATE USER] Отправка запроса:', { username, email, firstName, lastName, role, salary });
+                    
+                    const resp = await fetch('/api/managers', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            username: username,
+                            email: email,
+                            first_name: firstName || null,
+                            last_name: lastName || null,
+                            role: role,
+                            salary: salary
+                        })
+                    });
+
+                    console.log('[CREATE USER] Статус ответа:', resp.status, resp.statusText);
+
+                    const contentType = resp.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await resp.text();
+                        console.error('[CREATE USER] Получен не-JSON ответ:', text.substring(0, 200));
+                        statusEl.textContent = '❌ Ошибка: сервер вернул не-JSON ответ';
+                        statusEl.style.color = 'var(--error, #ef4444)';
+                        return;
+                    }
+
+                    const result = await resp.json();
+                    console.log('[CREATE USER] Результат:', result);
+                    
+                    // Проверяем успешный ответ (201 Created или 200 OK)
+                    if ((resp.status === 201 || resp.status === 200) && result.success) {
+                        // Если есть одноразовый пароль, показываем его в специальном блоке
+                        if (result.temp_password) {
+                            const tempPassword = result.temp_password;
+                            statusEl.innerHTML = `
+                                <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 1.5rem; border-radius: var(--radius); margin-top: 1rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                                    <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                        <span>✅</span>
+                                        <span>Пользователь успешно создан!</span>
+                                    </div>
+                                    <div style="background: rgba(255, 255, 255, 0.2); padding: 1rem; border-radius: calc(var(--radius) - 2px); margin-bottom: 1rem;">
+                                        <div style="font-size: 0.875rem; margin-bottom: 0.5rem; opacity: 0.9;">🔐 Одноразовый пароль:</div>
+                                        <div style="font-size: 1.5rem; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 0.1em; text-align: center; background: rgba(255, 255, 255, 0.15); padding: 0.75rem; border-radius: calc(var(--radius) - 2px); border: 2px dashed rgba(255, 255, 255, 0.4);" id="temp-password-display">${tempPassword}</div>
+                                    </div>
+                                    <button onclick="copyTempPassword('${tempPassword.replace(/'/g, "\\'").replace(/"/g, '\\"')}', this)" style="width: 100%; padding: 0.75rem; background: white; color: #059669; border: none; border-radius: calc(var(--radius) - 2px); font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem;" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
+                                        📋 Копировать пароль
+                                    </button>
+                                    <div style="font-size: 0.75rem; margin-top: 0.75rem; opacity: 0.9; text-align: center;">
+                                        ⚠️ Сохраните этот пароль! Он больше не будет показан.
+                                    </div>
+                                </div>
+                            `;
+                            statusEl.style.color = 'transparent';
+                        } else {
+                            statusEl.textContent = `✅ ${result.message || 'Пользователь успешно создан!'}`;
+                            statusEl.style.color = 'var(--success, #10b981)';
+                        }
+                        
+                        // Очищаем поля
+                        document.getElementById('new-user-username').value = '';
+                        document.getElementById('new-user-email').value = '';
+                        if (document.getElementById('new-user-first-name')) {
+                            document.getElementById('new-user-first-name').value = '';
+                        }
+                        if (document.getElementById('new-user-last-name')) {
+                            document.getElementById('new-user-last-name').value = '';
+                        }
+                        document.getElementById('new-user-salary').value = '';
+                        document.getElementById('new-user-role').value = 'manager';
+                        
+                        // Если загружаем список пользователей для видимости вкладок, обновляем его
+                        {% if user and user.get('role') == 'super_admin' %}
+                        if (typeof loadUsersForTabVisibility === 'function') {
+                            await loadUsersForTabVisibility();
+                        }
+                        {% endif %}
+                    } else {
+                        // Обрабатываем ошибки
+                        const errorMsg = result.error || result.message || `Не удалось создать пользователя (статус: ${resp.status})`;
+                        console.error('[CREATE USER] Ошибка:', errorMsg);
+                        statusEl.textContent = `❌ ${errorMsg}`;
+                        statusEl.style.color = 'var(--error, #ef4444)';
+                    }
+                } catch (e) {
+                    console.error('[CREATE USER] Исключение при создании пользователя:', e);
+                    statusEl.textContent = '❌ Ошибка создания пользователя: ' + (e.message || String(e));
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                }
+                {% else %}
+                // Если пользователь не админ, функция не должна быть вызвана, но на всякий случай
+                console.error('[CREATE USER] Нет прав для создания пользователя');
+                const statusEl = document.getElementById('create-user-status');
+                if (statusEl) {
+                    statusEl.textContent = '❌ Нет прав для создания пользователя';
+                    statusEl.style.color = 'var(--error, #ef4444)';
+                }
+                {% endif %}
+            };
+            
+            console.log('[EARLY INIT] Функции определены в HEAD. showCreateShopModal:', typeof window.showCreateShopModal);
+            console.log('[EARLY INIT] Функции определены в HEAD. showEditShopModal:', typeof window.showEditShopModal);
+            console.log('[EARLY INIT] Функции определены в HEAD. createShop:', typeof window.createShop);
+            console.log('[EARLY INIT] Функции определены в HEAD. updateShop:', typeof window.updateShop);
+            console.log('[EARLY INIT] Функции определены в HEAD. toggleSecret:', typeof window.toggleSecret);
+            console.log('[EARLY INIT] Функции определены в HEAD. loadAvitoShops:', typeof window.loadAvitoShops);
+            console.log('[EARLY INIT] Функции определены в HEAD. saveAvitoCredentials:', typeof window.saveAvitoCredentials);
+            console.log('[EARLY INIT] Функции определены в HEAD. updateShop:', typeof window.updateShop);
+            console.log('[EARLY INIT] Функции определены в HEAD. populateAvitoFields:', typeof window.populateAvitoFields);
+            console.log('[EARLY INIT] Функции определены в HEAD. createUser:', typeof window.createUser);
+            
+            // Функция копирования одноразового пароля
+            window.copyTempPassword = function(password, buttonElement) {
+                navigator.clipboard.writeText(password).then(() => {
+                    // Если кнопка передана, обновляем её текст
+                    if (buttonElement) {
+                        const originalText = buttonElement.textContent;
+                        buttonElement.textContent = '✅ Скопировано!';
+                        buttonElement.style.background = '#10b981';
+                        buttonElement.style.color = 'white';
+                        setTimeout(() => {
+                            buttonElement.textContent = originalText;
+                            buttonElement.style.background = 'white';
+                            buttonElement.style.color = '#059669';
+                        }, 2000);
+                    } else {
+                        // Если кнопка не передана, просто показываем сообщение
+                        alert('✅ Пароль скопирован в буфер обмена!');
+                    }
+                }).catch(err => {
+                    console.error('Ошибка копирования:', err);
+                    alert('Не удалось скопировать пароль. Скопируйте вручную: ' + password);
+                });
+            };
+        })();
+    </script>
+{% endblock %}
+
+{% block styles %}
+    <style>
+        .settings-page {
+            padding: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text);
+        }
+
+        .settings-block {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius));
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .block-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .form-item {
+            margin-bottom: 1rem;
+        }
+
+        .form-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius));
+            background: var(--card);
+            color: var(--text);
+            font-size: 0.875rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-help {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .color-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .color-picker {
+            width: 50px;
+            height: 40px;
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius));
+            cursor: pointer;
+        }
+
+        .color-text {
+            flex: 1;
+        }
+
+        .switch-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            background: color-mix(in srgb, var(--bg-secondary) 30%, transparent);
+            border-radius: calc(var(--radius));
+        }
+
+        .switch-label-text {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .switch-label-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-secondary);
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .switch-slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .switch-slider:before {
+            transform: translateX(24px);
+        }
+
+        .theme-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .theme-btn {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            border-radius: calc(var(--radius));
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .theme-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .theme-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .save-button {
+            width: 100%;
+            padding: 0.875rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: calc(var(--radius));
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            transition: opacity 0.2s;
+        }
+
+        .save-button:hover {
+            opacity: 0.9;
+        }
+
+        .save-button:active {
+            opacity: 0.8;
+        }
+
+        .modal-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            background: rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(8px) !important;
+            -webkit-backdrop-filter: blur(8px) !important;
+            display: none !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 99999 !important;
+            padding: 1rem !important;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-overlay[style*="flex"],
+        .modal-overlay.show {
+            display: flex !important;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-content {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) * 1.5);
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+            position: relative;
+            z-index: 10000;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .status-message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: calc(var(--radius));
+            text-align: center;
+            font-size: 0.875rem;
+        }
+
+        .status-message.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-message.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .inline-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.6rem;
+            border-radius: 999px;
+            background: var(--bg-secondary);
+            color: var(--text);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+            <div class="settings-page">
+                <h1 class="page-title">⚙️ Настройки</h1>
+
+                {% if user and (user.get('role') == 'admin' or user.get('role') == 'super_admin') %}
+                <!-- Таймеры -->
+                <div class="settings-block">
+                    <h2 class="block-title">⏱️ Таймеры</h2>
+                    <div class="form-row">
+                        <div class="form-item">
+                            <label class="form-label">Время для нового чата (часы)</label>
+                            <input type="number" class="form-input" id="timer-new-chat" min="1" max="24" value="1">
+                            <div class="form-help">Чат считается новым, если прошло меньше указанного времени</div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Время для срочного чата (минуты)</label>
+                            <input type="number" class="form-input" id="timer-urgent" min="5" max="60" value="20">
+                            <div class="form-help">Чат становится срочным после указанного времени без ответа</div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Критическое время ответа (минуты)</label>
+                            <input type="number" class="form-input" id="timer-critical" min="10" max="120" value="60">
+                            <div class="form-help">Критическое время для ответа на чат</div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Интервал мигания (мс)</label>
+                            <input type="number" class="form-input" id="notification-blink" min="500" max="5000" step="100" value="1000">
+                            <div class="form-help">Интервал мигания для срочных уведомлений</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Цвета -->
+                <div class="settings-block">
+                    <h2 class="block-title">🎨 Цвета</h2>
+                    <div class="form-row">
+                        <div class="form-item">
+                            <label class="form-label">Цвет срочных чатов</label>
+                            <div class="color-group">
+                                <input type="color" class="color-picker" id="color-urgent" value="#ef4444">
+                                <input type="text" class="form-input color-text" id="color-urgent-text" value="#ef4444">
+                            </div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Цвет новых чатов</label>
+                            <div class="color-group">
+                                <input type="color" class="color-picker" id="color-new" value="#f59e0b">
+                                <input type="text" class="form-input color-text" id="color-new-text" value="#f59e0b">
+                            </div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Цвет активных чатов</label>
+                            <div class="color-group">
+                                <input type="color" class="color-picker" id="color-active" value="#10b981">
+                                <input type="text" class="form-input color-text" id="color-active-text" value="#10b981">
+                            </div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Цвет доставок</label>
+                            <div class="color-group">
+                                <input type="color" class="color-picker" id="color-delivery" value="#8b5cf6">
+                                <input type="text" class="form-input color-text" id="color-delivery-text" value="#8b5cf6">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI -->
+                <div class="settings-block">
+                    <h2 class="block-title">📊 KPI</h2>
+                    <div class="form-row">
+                        <div class="form-item">
+                            <label class="form-label">Вес времени ответа (0.0 - 1.0)</label>
+                            <input type="number" class="form-input" id="kpi-response-weight" min="0" max="1" step="0.1" value="0.3">
+                            <div class="form-help">Влияние времени ответа на общий KPI</div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Вес конверсии (0.0 - 1.0)</label>
+                            <input type="number" class="form-input" id="kpi-conversion-weight" min="0" max="1" step="0.1" value="0.4">
+                            <div class="form-help">Влияние конверсии в заказы на общий KPI</div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Вес удовлетворенности (0.0 - 1.0)</label>
+                            <input type="number" class="form-input" id="kpi-satisfaction-weight" min="0" max="1" step="0.1" value="0.2">
+                            <div class="form-help">Влияние удовлетворенности клиентов на общий KPI</div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Вес сообщений (0.0 - 1.0)</label>
+                            <input type="number" class="form-input" id="kpi-messages-weight" min="0" max="1" step="0.1" value="0.1">
+                            <div class="form-help">Влияние количества сообщений на общий KPI</div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Минимальный KPI для бонуса (%)</label>
+                            <input type="number" class="form-input" id="kpi-min-bonus" min="0" max="100" value="80">
+                            <div class="form-help">Минимальный KPI для получения бонуса</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Avito API -->
+                <div class="settings-block">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h2 class="block-title" style="margin: 0;">🔑 Avito API для магазинов</h2>
+                        <button class="theme-btn" id="create-shop-btn" style="padding: 0.5rem 1rem;" onclick="console.log('[ONCLICK] Кнопка нажата!'); console.log('[ONCLICK] window.showCreateShopModal:', typeof window.showCreateShopModal); if(typeof window.showCreateShopModal === 'function') { window.showCreateShopModal(); } else { alert('Функция showCreateShopModal не найдена! Проверьте консоль (F12)'); }">
+                            ➕ Создать магазин
+                        </button>
+                    </div>
+                    
+                    <div class="form-item">
+                        <label class="form-label">Магазин</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <select class="form-input" id="avito-shop-select" style="flex: 1;"></select>
+                            <button class="theme-btn" onclick="console.log('[BUTTON CLICK] Кнопка обновления нажата'); if(typeof window.loadAvitoShops === 'function') { window.loadAvitoShops(); } else { console.error('[BUTTON CLICK] Функция loadAvitoShops не найдена!'); alert('Функция loadAvitoShops не найдена. Проверьте консоль (F12)'); }" style="padding: 0.5rem 0.75rem;" title="Обновить список">
+                                🔄
+                            </button>
+                            <button class="theme-btn" onclick="deleteSelectedShop()" style="padding: 0.5rem 0.75rem; background: var(--danger, #ef4444); color: white;" title="Удалить выбранный магазин" id="delete-shop-btn" disabled>
+                                🗑️
+                            </button>
+                        </div>
+                        <div class="form-help" id="avito-shop-status"></div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-item">
+                            <label class="form-label">Client ID</label>
+                            <input type="text" class="form-input" id="avito-client-id" autocomplete="off" placeholder="Вставьте Client ID">
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Client Secret</label>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <input type="password" class="form-input" id="avito-client-secret" autocomplete="off" placeholder="Вставьте Client Secret" style="flex:1;">
+                                <button type="button" class="theme-btn" style="padding:0.5rem 0.75rem;" onclick="toggleSecret('avito-client-secret', this)">👁</button>
+                            </div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">User ID (Avito)</label>
+                            <input type="text" class="form-input" id="avito-user-id" autocomplete="off" placeholder="Вставьте User ID">
+                        </div>
+                    </div>
+                    <button class="save-button" style="margin-top: 1rem;" onclick="if(typeof window.saveAvitoCredentials === 'function') { window.saveAvitoCredentials(); } else { alert('Функция saveAvitoCredentials не найдена. Проверьте консоль (F12)'); }">💾 Сохранить ключи</button>
+                    <div class="form-help" style="margin-top: 0.5rem;">Ключи не сохраняются в логах. После изменения — перезапустите синхронизацию чатов.</div>
+                </div>
+                {% endif %}
+
+                {% if user and user.get('role') == 'super_admin' %}
+                <!-- Управление видимостью вкладок (только для super_admin) -->
+                <div class="settings-block">
+                    <h2 class="block-title">👁️ Управление видимостью вкладок</h2>
+                    <div class="form-help" style="margin-bottom: 1rem;">Выберите пользователя и настройте видимость вкладок для него</div>
+                    
+                    <div class="form-item" style="margin-bottom: 1.5rem;">
+                        <label class="form-label">Выберите пользователя</label>
+                        <select class="form-input" id="tab-visibility-user-select" onchange="loadUserTabVisibility()">
+                            <option value="">-- Выберите пользователя --</option>
+                        </select>
+                        <div class="form-help">Выберите пользователя для настройки видимости вкладок</div>
+                    </div>
+                    
+                    <div id="tab-visibility-settings" style="display: none;">
+                        <div style="margin-top: 1rem;">
+                            <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text);" id="selected-user-name">👤 Пользователь</h3>
+                            <div class="tab-visibility-list">
+                                <label class="switch-group" style="padding: 0.75rem; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <div class="switch-label-text">📊 Дашборд</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="tab-user-dashboard" checked>
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </label>
+                                <label class="switch-group" style="padding: 0.75rem; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <div class="switch-label-text">💬 Чаты</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="tab-user-chats" checked>
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </label>
+                                <label class="switch-group" style="padding: 0.75rem; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <div class="switch-label-text">🛒 Выкуп</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="tab-user-buyout" checked>
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </label>
+                                <label class="switch-group" style="padding: 0.75rem; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <div class="switch-label-text">🚚 Доставки</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="tab-user-deliveries" checked>
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </label>
+                                <label class="switch-group" style="padding: 0.75rem; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <div class="switch-label-text">⚡ Быстрые ответы</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="tab-user-quick-replies" checked>
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </label>
+                                <label class="switch-group" style="padding: 0.75rem; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <div class="switch-label-text">🏪 Магазины</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="tab-user-shops">
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </label>
+                                <label class="switch-group" style="padding: 0.75rem; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <div class="switch-label-text">📈 Аналитика</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="tab-user-analytics">
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </label>
+                                <label class="switch-group" style="padding: 0.75rem; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <div class="switch-label-text">⚙️ Настройки</div>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="tab-user-settings">
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="save-button" style="margin-top: 1rem;" onclick="saveTabVisibility()" id="save-tab-visibility-btn" disabled>💾 Сохранить настройки видимости</button>
+                    <div class="form-help" style="margin-top: 0.5rem;">Изменения вступят в силу после перезагрузки страницы пользователем</div>
+                </div>
+                {% endif %}
+
+                {% if user and (user.get('role') == 'admin' or user.get('role') == 'super_admin') %}
+                <!-- Создание пользователей (админ и super_admin) -->
+                <div class="settings-block">
+                    <h2 class="block-title">👥 Создание пользователей</h2>
+                    <div class="form-help" style="margin-bottom: 1rem;">Создайте нового админа или менеджера</div>
+                    
+                    <div class="form-item">
+                        <label class="form-label">Роль *</label>
+                        <select class="form-input" id="new-user-role">
+                            <option value="manager">👨‍💼 Менеджер</option>
+                            {% if user and user.get('role') == 'super_admin' %}
+                            <option value="admin">👑 Админ</option>
+                            {% endif %}
+                        </select>
+                        <div class="form-help">{% if user and user.get('role') == 'super_admin' %}Супер-админ может создавать админов и менеджеров{% else %}Админ может создавать только менеджеров{% endif %}</div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-item">
+                            <label class="form-label">Имя пользователя *</label>
+                            <input type="text" class="form-input" id="new-user-username" placeholder="Введите имя пользователя" autocomplete="off">
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Email *</label>
+                            <input type="email" class="form-input" id="new-user-email" placeholder="user@example.com" autocomplete="off">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-item">
+                            <label class="form-label">Имя</label>
+                            <input type="text" class="form-input" id="new-user-first-name" placeholder="Введите имя" autocomplete="off">
+                            <div class="form-help">Имя будет отображаться в сообщениях</div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Фамилия</label>
+                            <input type="text" class="form-input" id="new-user-last-name" placeholder="Введите фамилию" autocomplete="off">
+                            <div class="form-help">Фамилия будет отображаться вместе с именем</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-item">
+                        <label class="form-label">Зарплата (опционально)</label>
+                        <input type="number" class="form-input" id="new-user-salary" placeholder="0" min="0" step="0.01" autocomplete="off">
+                        <div class="form-help">Зарплата для расчета KPI и бонусов</div>
+                    </div>
+                    
+                    <button class="save-button" style="margin-top: 1rem;" onclick="createUser()">➕ Создать пользователя</button>
+                    <div id="create-user-status" class="form-help" style="margin-top: 0.5rem; color: var(--text-muted);"></div>
+                </div>
+                {% endif %}
+
+                <!-- Уведомления -->
+                <div class="settings-block">
+                    <h2 class="block-title">🔔 Уведомления</h2>
+                    <div class="form-item">
+                        <div class="switch-group">
+                            <div>
+                                <div class="switch-label-text">Push-уведомления</div>
+                                <div class="switch-label-desc">Получать уведомления в браузере</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="push-enabled" checked>
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-item">
+                        <div class="switch-group">
+                            <div>
+                                <div class="switch-label-text">Звуковые сигналы</div>
+                                <div class="switch-label-desc">Воспроизводить звук при уведомлениях</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="sound-enabled" checked>
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Тема -->
+                <div class="settings-block">
+                    <h2 class="block-title">🌙 Тема</h2>
+                    <div class="theme-buttons">
+                        <button class="theme-btn active" data-theme="dark" onclick="switchTheme('dark')">🌙 Темная</button>
+                        <button class="theme-btn" data-theme="light" onclick="switchTheme('light')">☀️ Светлая</button>
+                    </div>
+                </div>
+
+                <button class="save-button" onclick="saveSettings()">💾 Сохранить настройки</button>
+                <div id="status-message" class="status-message" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для создания магазина -->
+        <div id="create-shop-modal" class="modal-overlay" style="display: none !important;">
+            <div class="modal-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="margin: 0; font-size: 1.25rem; color: var(--text);">➕ Создать новый магазин</h2>
+                    <button class="theme-btn" id="create-shop-close-btn" style="padding: 0.5rem; font-size: 1.25rem;">✕</button>
+                </div>
+                <div class="form-item">
+                    <label class="form-label">Название магазина *</label>
+                    <input type="text" class="form-input" id="new-shop-name" placeholder="Например: Мой магазин Avito" autocomplete="off">
+                </div>
+                <div class="form-item">
+                    <label class="form-label">URL магазина *</label>
+                    <input type="url" class="form-input" id="new-shop-url" placeholder="https://www.avito.ru/users/..." autocomplete="off">
+                    <div class="form-help">Полный URL страницы магазина на Avito</div>
+                </div>
+                <div class="form-item">
+                    <label class="form-label">API ключ (опционально)</label>
+                    <input type="text" class="form-input" id="new-shop-api-key" placeholder="Оставьте пустым, если не нужен" autocomplete="off">
+                </div>
+                <div class="form-item">
+                    <label class="switch-group" style="padding: 0;">
+                        <div>
+                            <div class="switch-label-text">Активен</div>
+                            <div class="switch-label-desc">Магазин будет использоваться в системе</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="new-shop-active" checked>
+                            <span class="switch-slider"></span>
+                        </label>
+                    </label>
+                </div>
+                <div style="margin: 1.5rem 0; padding: 1rem; background: color-mix(in srgb, var(--bg-secondary) 30%, transparent); border-radius: calc(var(--radius));">
+                    <div style="font-weight: 600; margin-bottom: 0.75rem; color: var(--text);">🔑 Ключи Avito API (можно добавить сейчас или позже)</div>
+                    <div class="form-row">
+                        <div class="form-item">
+                            <label class="form-label">Client ID</label>
+                            <input type="text" class="form-input" id="new-shop-client-id" placeholder="Опционально" autocomplete="off">
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Client Secret</label>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <input type="password" class="form-input" id="new-shop-client-secret" placeholder="Опционально" autocomplete="off" style="flex:1;">
+                                <button type="button" class="theme-btn" style="padding:0.5rem 0.75rem;" onclick="toggleSecret('new-shop-client-secret', this)">👁</button>
+                            </div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">User ID</label>
+                            <input type="text" class="form-input" id="new-shop-user-id" placeholder="Опционально" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                    <button class="save-button" id="create-shop-submit-btn" style="flex: 1;" onclick="console.log('[ONCLICK SUBMIT] Кнопка нажата!'); console.log('[ONCLICK SUBMIT] window.createShop:', typeof window.createShop); if(typeof window.createShop === 'function') { window.createShop(); } else { alert('Функция createShop не найдена! Проверьте консоль (F12)'); } return false;">💾 Создать магазин</button>
+                    <button class="theme-btn" id="create-shop-cancel-btn" style="padding: 0.875rem 1.5rem;">Отмена</button>
+                </div>
+                <div id="create-shop-status" class="form-help" style="margin-top: 0.5rem; color: var(--text-muted);"></div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для редактирования магазина -->
+        <div id="edit-shop-modal" class="modal-overlay" style="display: none !important;">
+            <div class="modal-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="margin: 0; font-size: 1.25rem; color: var(--text);">✏️ Редактировать магазин</h2>
+                    <button class="theme-btn" id="edit-shop-close-btn" style="padding: 0.5rem; font-size: 1.25rem;">✕</button>
+                </div>
+                <input type="hidden" id="edit-shop-id" value="">
+                <div class="form-item">
+                    <label class="form-label">Название магазина *</label>
+                    <input type="text" class="form-input" id="edit-shop-name" placeholder="Например: Мой магазин Avito" autocomplete="off">
+                </div>
+                <div class="form-item">
+                    <label class="form-label">URL магазина *</label>
+                    <input type="url" class="form-input" id="edit-shop-url" placeholder="https://www.avito.ru/users/..." autocomplete="off">
+                    <div class="form-help">Полный URL страницы магазина на Avito</div>
+                </div>
+                <div class="form-item">
+                    <label class="form-label">API ключ (опционально)</label>
+                    <input type="text" class="form-input" id="edit-shop-api-key" placeholder="Оставьте пустым, если не нужен" autocomplete="off">
+                </div>
+                <div class="form-item">
+                    <label class="switch-group" style="padding: 0;">
+                        <div>
+                            <div class="switch-label-text">Активен</div>
+                            <div class="switch-label-desc">Магазин будет использоваться в системе</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="edit-shop-active" checked>
+                            <span class="switch-slider"></span>
+                        </label>
+                    </label>
+                </div>
+                <div style="margin: 1.5rem 0; padding: 1rem; background: color-mix(in srgb, var(--bg-secondary) 30%, transparent); border-radius: calc(var(--radius));">
+                    <div style="font-weight: 600; margin-bottom: 0.75rem; color: var(--text);">🔑 Ключи Avito API (можно изменить)</div>
+                    <div class="form-row">
+                        <div class="form-item">
+                            <label class="form-label">Client ID</label>
+                            <input type="text" class="form-input" id="edit-shop-client-id" placeholder="Опционально" autocomplete="off">
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">Client Secret</label>
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <input type="password" class="form-input" id="edit-shop-client-secret" placeholder="Опционально" autocomplete="off" style="flex:1;">
+                                <button type="button" class="theme-btn" style="padding:0.5rem 0.75rem;" onclick="if(typeof window.toggleSecret === 'function') { window.toggleSecret('edit-shop-client-secret', this); } else { alert('Функция toggleSecret не найдена'); }">👁</button>
+                            </div>
+                        </div>
+                        <div class="form-item">
+                            <label class="form-label">User ID</label>
+                            <input type="text" class="form-input" id="edit-shop-user-id" placeholder="Опционально" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                    <button class="save-button" id="edit-shop-submit-btn" style="flex: 1;">💾 Сохранить изменения</button>
+                    <button class="theme-btn" id="edit-shop-cancel-btn" style="padding: 0.875rem 1.5rem;">Отмена</button>
+                </div>
+                <div id="edit-shop-status" class="form-help" style="margin-top: 0.5rem; color: var(--text-muted);"></div>
+            </div>
+        </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // Функции уже определены в блоке styles (самое начало), здесь только проверяем
+        console.log('[SCRIPTS BLOCK] Функции определены. showCreateShopModal:', typeof window.showCreateShopModal);
+        console.log('[SCRIPTS BLOCK] Функции определены. closeCreateShopModal:', typeof window.closeCreateShopModal);
+        
+        // Тест: проверяем, что функции доступны сразу
+        setTimeout(() => {
+            console.log('[SCRIPTS TEST] Проверка через 100ms:');
+            console.log('  - showCreateShopModal:', typeof window.showCreateShopModal);
+            console.log('  - closeCreateShopModal:', typeof window.closeCreateShopModal);
+            console.log('  - Кнопка create-shop-btn:', document.getElementById('create-shop-btn'));
+        }, 100);
+        
+        let systemSettings = {};
+        let userSettings = {};
+        // avitoShops теперь глобальная переменная window.avitoShops, определенная в early_scripts
+        // Используем window.avitoShops если она уже определена, иначе создаем локальную
+        if (typeof window.avitoShops === 'undefined') {
+            window.avitoShops = [];
+        }
+        // Для обратной совместимости создаем локальную ссылку
+        let avitoShops = window.avitoShops;
+
+        // Загрузка настроек
+        async function loadSettings() {
+            try {
+                {% if user and (user.get('role') == 'admin' or user.get('role') == 'super_admin') %}
+                const systemResponse = await fetch('/api/settings');
+                if (systemResponse.ok) {
+                    systemSettings = await systemResponse.json();
+                    
+                    if (systemSettings.timer_new_chat_hours) {
+                        document.getElementById('timer-new-chat').value = systemSettings.timer_new_chat_hours;
+                    }
+                    if (systemSettings.timer_urgent_minutes) {
+                        document.getElementById('timer-urgent').value = systemSettings.timer_urgent_minutes;
+                    }
+                    if (systemSettings.timer_critical_minutes) {
+                        document.getElementById('timer-critical').value = systemSettings.timer_critical_minutes;
+                    }
+                    if (systemSettings.notification_blink_interval) {
+                        document.getElementById('notification-blink').value = systemSettings.notification_blink_interval;
+                    }
+                    if (systemSettings.color_urgent) {
+                        document.getElementById('color-urgent').value = systemSettings.color_urgent;
+                        document.getElementById('color-urgent-text').value = systemSettings.color_urgent;
+                    }
+                    if (systemSettings.color_new) {
+                        document.getElementById('color-new').value = systemSettings.color_new;
+                        document.getElementById('color-new-text').value = systemSettings.color_new;
+                    }
+                    if (systemSettings.color_active) {
+                        document.getElementById('color-active').value = systemSettings.color_active;
+                        document.getElementById('color-active-text').value = systemSettings.color_active;
+                    }
+                    if (systemSettings.color_delivery) {
+                        document.getElementById('color-delivery').value = systemSettings.color_delivery;
+                        document.getElementById('color-delivery-text').value = systemSettings.color_delivery;
+                    }
+                    if (systemSettings.push_enabled !== undefined) {
+                        document.getElementById('push-enabled').checked = systemSettings.push_enabled;
+                    }
+                    if (systemSettings.sound_enabled !== undefined) {
+                        document.getElementById('sound-enabled').checked = systemSettings.sound_enabled;
+                    }
+                    
+                    {% if user and user.get('role') == 'super_admin' %}
+                    // Загружаем список пользователей для управления видимостью вкладок
+                    await loadUsersForTabVisibility();
+                    {% endif %}
+                }
+                {% endif %}
+
+                {% if user and (user.get('role') == 'admin' or user.get('role') == 'super_admin') %}
+                console.log('[INIT] Загрузка списка магазинов...');
+                console.log('[INIT] Проверка элемента avito-shop-select перед загрузкой...');
+                const selectBefore = document.getElementById('avito-shop-select');
+                console.log('[INIT] Элемент avito-shop-select найден:', selectBefore !== null);
+                
+                if (typeof window.loadAvitoShops === 'function') {
+                    console.log('[INIT] Функция loadAvitoShops найдена, вызываем...');
+                    try {
+                        await window.loadAvitoShops();
+                        console.log('[INIT] Список магазинов загружен успешно');
+                    } catch (err) {
+                        console.error('[INIT] Ошибка при загрузке магазинов:', err);
+                    }
+                } else {
+                    console.error('[INIT] Функция loadAvitoShops не найдена!');
+                }
+                
+                // Проверяем, есть ли сохраненный ID магазина для выбора (из shops.html)
+                const selectedShopId = localStorage.getItem('selectedShopId');
+                if (selectedShopId) {
+                    console.log('[INIT] Найден сохраненный ID магазина:', selectedShopId);
+                    setTimeout(() => {
+                        const select = document.getElementById('avito-shop-select');
+                        if (select) {
+                            select.value = selectedShopId;
+                            select.dispatchEvent(new Event('change'));
+                            // Удаляем сохраненный ID после использования
+                            localStorage.removeItem('selectedShopId');
+                            console.log('[INIT] Магазин выбран:', selectedShopId);
+                        }
+                    }, 1000);
+                }
+                {% endif %}
+
+                const userResponse = await fetch('/api/user/settings');
+                if (userResponse.ok) {
+                    userSettings = await userResponse.json();
+                    if (userSettings.theme) {
+                        switchTheme(userSettings.theme, false);
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки настроек:', error);
+            }
+        }
+
+        // loadAvitoShops уже определена в блоке early_scripts, дублирование удалено
+
+        function populateAvitoFields(shopId) {
+            const statusEl = document.getElementById('avito-shop-status');
+            const cid = document.getElementById('avito-client-id');
+            const csec = document.getElementById('avito-client-secret');
+            const uid = document.getElementById('avito-user-id');
+            
+            if (!shopId) {
+                if (cid) cid.value = '';
+                if (csec) csec.value = '';
+                if (uid) uid.value = '';
+                if (statusEl) statusEl.textContent = '';
+                return;
+            }
+            
+            // Используем глобальную переменную window.avitoShops
+            const shopsList = window.avitoShops || avitoShops || [];
+            const shop = shopsList.find(s => String(s.id) === String(shopId));
+            if (!shop) {
+                console.warn('[POPULATE] Магазин не найден:', shopId, 'в списке из', shopsList.length, 'магазинов');
+                if (cid) cid.value = '';
+                if (csec) csec.value = '';
+                if (uid) uid.value = '';
+                if (statusEl) statusEl.textContent = '⚠️ Магазин не найден';
+                return;
+            }
+            
+            console.log('Заполнение полей для магазина:', shop.name, {
+                has_client_id: !!shop.client_id,
+                has_client_secret: !!shop.client_secret,
+                has_user_id: !!shop.user_id,
+                avito_status: shop.avito_status
+            });
+            
+            if (cid) cid.value = shop.client_id || '';
+            if (csec) csec.value = shop.client_secret || '';
+            if (uid) uid.value = shop.user_id || '';
+            if (statusEl) {
+                const status = shop.avito_status === 'ok' ? '✅ Ключи заполнены' : '⚠️ Ключи отсутствуют';
+                statusEl.textContent = status;
+            }
+        };
+
+        // saveAvitoCredentials уже определена в блоке early_scripts, дублирование удалено
+
+        // Функции уже определены в начале скрипта, дублирование удалено
+        
+        // Обработчик клика вне модального окна (добавляем один раз при загрузке)
+        (function() {
+            // Ждем загрузки DOM
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initModalHandlers);
+            } else {
+                initModalHandlers();
+            }
+            
+            function initModalHandlers() {
+                const modal = document.getElementById('create-shop-modal');
+                if (modal) {
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) {
+                            if (typeof window.closeCreateShopModal === 'function') {
+                                window.closeCreateShopModal();
+                            }
+                        }
+                    });
+                    console.log('Обработчики модального окна инициализированы');
+                } else {
+                    console.warn('Модальное окно не найдено при инициализации обработчиков');
+                }
+                
+                // Закрытие по Escape
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        const modal = document.getElementById('create-shop-modal');
+                        if (modal && modal.style.display === 'flex') {
+                            if (typeof window.closeCreateShopModal === 'function') {
+                                window.closeCreateShopModal();
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+
+        // closeCreateShopModal и createShop уже определены в блоке early_scripts, дублирование удалено
+
+        let allUsers = [];
+        
+        async function loadUsersForTabVisibility() {
+            {% if user and user.get('role') == 'super_admin' %}
+            try {
+                const resp = await fetch('/api/users');
+                if (!resp.ok) throw new Error('Не удалось загрузить пользователей');
+                allUsers = await resp.json();
+                const select = document.getElementById('tab-visibility-user-select');
+                if (!select) return;
+                
+                select.innerHTML = '<option value="">-- Выберите пользователя --</option>' + 
+                    allUsers.filter(u => u.is_active).map(user => {
+                        const roleIcon = user.role === 'super_admin' ? '👑' : user.role === 'admin' ? '👑' : '👨‍💼';
+                        return `<option value="${user.id}">${roleIcon} ${user.username} (${user.email}) - ${user.role}</option>`;
+                    }).join('');
+            } catch (e) {
+                console.error('Ошибка загрузки пользователей:', e);
+            }
+            {% endif %}
+        }
+        
+        async function loadUserTabVisibility() {
+            {% if user and user.get('role') == 'super_admin' %}
+            const userId = document.getElementById('tab-visibility-user-select')?.value;
+            const settingsDiv = document.getElementById('tab-visibility-settings');
+            const saveBtn = document.getElementById('save-tab-visibility-btn');
+            const userNameEl = document.getElementById('selected-user-name');
+            
+            if (!userId) {
+                if (settingsDiv) settingsDiv.style.display = 'none';
+                if (saveBtn) saveBtn.disabled = true;
+                return;
+            }
+            
+            const selectedUser = allUsers.find(u => String(u.id) === String(userId));
+            if (selectedUser && userNameEl) {
+                const roleIcon = selectedUser.role === 'super_admin' ? '👑' : selectedUser.role === 'admin' ? '👑' : '👨‍💼';
+                userNameEl.textContent = `${roleIcon} ${selectedUser.username} (${selectedUser.role})`;
+            }
+            
+            try {
+                const resp = await fetch(`/api/users/${userId}/tab-visibility`);
+                if (!resp.ok) throw new Error('Не удалось загрузить настройки');
+                const data = await resp.json();
+                
+                const tabs = data.tab_visibility || {};
+                // Устанавливаем значения по умолчанию на основе роли
+                const defaultTabs = selectedUser?.role === 'manager' ? {
+                    dashboard: true, chats: true, buyout: true, deliveries: true, quick_replies: true,
+                    shops: false, analytics: false, settings: false
+                } : {
+                    dashboard: true, chats: true, buyout: true, deliveries: true, quick_replies: true,
+                    shops: true, analytics: true, settings: true
+                };
+                
+                document.getElementById('tab-user-dashboard').checked = tabs.dashboard !== false && (tabs.dashboard !== undefined ? tabs.dashboard : defaultTabs.dashboard);
+                document.getElementById('tab-user-chats').checked = tabs.chats !== false && (tabs.chats !== undefined ? tabs.chats : defaultTabs.chats);
+                document.getElementById('tab-user-buyout').checked = tabs.buyout !== false && (tabs.buyout !== undefined ? tabs.buyout : defaultTabs.buyout);
+                document.getElementById('tab-user-deliveries').checked = tabs.deliveries !== false && (tabs.deliveries !== undefined ? tabs.deliveries : defaultTabs.deliveries);
+                document.getElementById('tab-user-quick-replies').checked = tabs.quick_replies !== false && (tabs.quick_replies !== undefined ? tabs.quick_replies : defaultTabs.quick_replies);
+                document.getElementById('tab-user-shops').checked = tabs.shops === true || (tabs.shops === undefined && defaultTabs.shops);
+                document.getElementById('tab-user-analytics').checked = tabs.analytics === true || (tabs.analytics === undefined && defaultTabs.analytics);
+                document.getElementById('tab-user-settings').checked = tabs.settings === true || (tabs.settings === undefined && defaultTabs.settings);
+                
+                if (settingsDiv) settingsDiv.style.display = 'block';
+                if (saveBtn) saveBtn.disabled = false;
+            } catch (e) {
+                console.error('Ошибка загрузки настроек:', e);
+                // Используем значения по умолчанию
+                const defaultTabs = selectedUser?.role === 'manager' ? {
+                    dashboard: true, chats: true, buyout: true, deliveries: true, quick_replies: true,
+                    shops: false, analytics: false, settings: false
+                } : {
+                    dashboard: true, chats: true, buyout: true, deliveries: true, quick_replies: true,
+                    shops: true, analytics: true, settings: true
+                };
+                
+                document.getElementById('tab-user-dashboard').checked = defaultTabs.dashboard;
+                document.getElementById('tab-user-chats').checked = defaultTabs.chats;
+                document.getElementById('tab-user-buyout').checked = defaultTabs.buyout;
+                document.getElementById('tab-user-deliveries').checked = defaultTabs.deliveries;
+                document.getElementById('tab-user-quick-replies').checked = defaultTabs.quick_replies;
+                document.getElementById('tab-user-shops').checked = defaultTabs.shops;
+                document.getElementById('tab-user-analytics').checked = defaultTabs.analytics;
+                document.getElementById('tab-user-settings').checked = defaultTabs.settings;
+                
+                if (settingsDiv) settingsDiv.style.display = 'block';
+                if (saveBtn) saveBtn.disabled = false;
+            }
+            {% endif %}
+        }
+        
+        async function saveTabVisibility() {
+            {% if user and user.get('role') == 'super_admin' %}
+            const userId = document.getElementById('tab-visibility-user-select')?.value;
+            if (!userId) {
+                showStatus('Выберите пользователя', 'error');
+                return;
+            }
+            
+            const tabs = {
+                dashboard: document.getElementById('tab-user-dashboard').checked,
+                chats: document.getElementById('tab-user-chats').checked,
+                buyout: document.getElementById('tab-user-buyout').checked,
+                deliveries: document.getElementById('tab-user-deliveries').checked,
+                quick_replies: document.getElementById('tab-user-quick-replies').checked,
+                shops: document.getElementById('tab-user-shops').checked,
+                analytics: document.getElementById('tab-user-analytics').checked,
+                settings: document.getElementById('tab-user-settings').checked
+            };
+            
+            try {
+                const resp = await fetch(`/api/users/${userId}/tab-visibility`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ tab_visibility: tabs })
+                });
+                
+                const contentType = resp.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await resp.text();
+                    console.error('Получен не-JSON ответ при сохранении видимости вкладок:', text.substring(0, 200));
+                    showStatus('❌ Ошибка: сервер вернул не-JSON ответ', 'error');
+                    return;
+                }
+                
+                const result = await resp.json();
+                if (resp.ok && result.success) {
+                    showStatus('✅ Настройки видимости вкладок сохранены', 'success');
+                } else {
+                    const errorMsg = result.error || 'Не удалось сохранить';
+                    showStatus(`❌ ${errorMsg}`, 'error');
+                }
+            } catch (e) {
+                console.error('Исключение при сохранении видимости вкладок:', e);
+                showStatus('❌ Ошибка сохранения: ' + (e.message || String(e)), 'error');
+            }
+            {% endif %}
+        }
+
+        async function deleteSelectedShop() {
+            const shopId = document.getElementById('avito-shop-select')?.value;
+            if (!shopId) {
+                showStatus('Выберите магазин для удаления', 'error');
+                return;
+            }
+            
+            const shopsList = window.avitoShops || [];
+            const shop = shopsList.find(s => String(s.id) === String(shopId));
+            const shopName = shop ? shop.name : 'магазин';
+            
+            if (!confirm(`Вы уверены, что хотите удалить магазин "${shopName}"?\n\nЭто действие нельзя отменить!`)) {
+                return;
+            }
+            
+            try {
+                const resp = await fetch(`/api/shops/${shopId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                const contentType = resp.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await resp.text();
+                    console.error('Получен не-JSON ответ при удалении магазина:', text.substring(0, 200));
+                    showStatus('❌ Ошибка: сервер вернул не-JSON ответ', 'error');
+                    return;
+                }
+                
+                const result = await resp.json();
+                if (resp.ok && result.success) {
+                    showStatus('✅ Магазин успешно удален', 'success');
+                    // Обновляем список магазинов
+                    await window.loadAvitoShops();
+                    // Очищаем поля
+                    populateAvitoFields('');
+                    const deleteBtn = document.getElementById('delete-shop-btn');
+                    if (deleteBtn) deleteBtn.disabled = true;
+                } else {
+                    const errorMsg = result.error || 'Не удалось удалить магазин';
+                    showStatus(`❌ ${errorMsg}`, 'error');
+                }
+            } catch (e) {
+                console.error('Исключение при удалении магазина:', e);
+                showStatus('❌ Ошибка удаления магазина: ' + (e.message || String(e)), 'error');
+            }
+        }
+
+        // Функция createUser уже определена в блоке early_scripts
+
+        // toggleSecret уже определена в блоке early_scripts как window.toggleSecret, дублирование удалено
+
+        // Подтверждение опасных действий (пример для удаления магазина)
+        const modal = {
+            backdrop: null,
+            resolve: null,
+        };
+
+        function ensureModal() {
+            if (modal.backdrop) return;
+            const html = `
+                <div class="modal-backdrop" id="confirm-backdrop">
+                    <div class="modal">
+                        <h3 id="confirm-title">Подтверждение</h3>
+                        <p id="confirm-text">Вы уверены?</p>
+                        <div class="modal-actions">
+                            <button class="btn-outline" id="confirm-cancel">Отмена</button>
+                            <button class="btn-danger" id="confirm-ok">Удалить</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+            modal.backdrop = document.getElementById('confirm-backdrop');
+            modal.backdrop.querySelector('#confirm-cancel').addEventListener('click', () => closeConfirm(false));
+            modal.backdrop.querySelector('#confirm-ok').addEventListener('click', () => closeConfirm(true));
+        }
+
+        function confirmAction(title, text) {
+            ensureModal();
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-text').textContent = text;
+            modal.backdrop.style.display = 'flex';
+            return new Promise((resolve) => {
+                modal.resolve = resolve;
+            });
+        }
+
+        function closeConfirm(result) {
+            if (modal.backdrop) modal.backdrop.style.display = 'none';
+            if (modal.resolve) modal.resolve(result);
+            modal.resolve = null;
+        }
+
+        // Синхронизация цветовых полей
+        document.querySelectorAll('.color-picker').forEach(input => {
+            input.addEventListener('input', function() {
+                const textInput = document.getElementById(this.id + '-text');
+                if (textInput) {
+                    textInput.value = this.value;
+                }
+            });
+        });
+
+        document.querySelectorAll('.color-text').forEach(input => {
+            input.addEventListener('input', function() {
+                const colorInput = document.getElementById(this.id.replace('-text', ''));
+                if (colorInput && /^#[0-9A-F]{6}$/i.test(this.value)) {
+                    colorInput.value = this.value;
+                }
+            });
+        });
+
+        // Переключение темы
+        function switchTheme(theme, save = true) {
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+
+            if (theme === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+            } else {
+                document.documentElement.classList.remove('light');
+                document.documentElement.classList.add('dark');
+            }
+
+            if (save) {
+                saveUserSettings();
+            }
+        }
+
+        // Сохранение пользовательских настроек
+        async function saveUserSettings() {
+            const theme = document.querySelector('.theme-btn.active')?.dataset.theme || 'dark';
+            
+            try {
+                const response = await fetch('/api/user/settings', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        theme: theme,
+                        sound_alerts: document.getElementById('sound-enabled').checked,
+                        push_notifications: document.getElementById('push-enabled').checked
+                    })
+                });
+
+                if (response.ok) {
+                    console.log('Пользовательские настройки сохранены');
+                }
+            } catch (error) {
+                console.error('Ошибка сохранения пользовательских настроек:', error);
+            }
+        }
+
+        // Сохранение всех настроек
+        async function saveSettings() {
+            try {
+                {% if user and (user.get('role') == 'admin' or user.get('role') == 'super_admin') %}
+                const systemData = {
+                    timer_new_chat_hours: parseInt(document.getElementById('timer-new-chat').value),
+                    timer_urgent_minutes: parseInt(document.getElementById('timer-urgent').value),
+                    timer_critical_minutes: parseInt(document.getElementById('timer-critical').value),
+                    notification_blink_interval: parseInt(document.getElementById('notification-blink').value),
+                    color_urgent: document.getElementById('color-urgent').value,
+                    color_new: document.getElementById('color-new').value,
+                    color_active: document.getElementById('color-active').value,
+                    color_delivery: document.getElementById('color-delivery').value,
+                    push_enabled: document.getElementById('push-enabled').checked,
+                    sound_enabled: document.getElementById('sound-enabled').checked
+                };
+
+                const systemResponse = await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(systemData)
+                });
+
+                if (systemResponse.ok) {
+                    console.log('Системные настройки сохранены');
+                }
+                {% endif %}
+
+                await saveUserSettings();
+
+                showStatus('✅ Настройки успешно сохранены!', 'success');
+            } catch (error) {
+                console.error('Ошибка сохранения настроек:', error);
+                showStatus('❌ Ошибка сохранения настроек', 'error');
+            }
+        }
+
+        // Показ статуса
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status-message');
+            if (statusEl) {
+                statusEl.textContent = message;
+                statusEl.className = 'status-message ' + type;
+                statusEl.style.display = 'block';
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // Инициализация обработчиков событий
+        function initShopModalHandlers() {
+            console.log('[INIT] Инициализация обработчиков модального окна магазина...');
+            
+            // Обработчик для кнопки создания магазина
+            const createShopBtn = document.getElementById('create-shop-btn');
+            console.log('[INIT] Кнопка create-shop-btn:', createShopBtn);
+            if (createShopBtn) {
+                // Удаляем все старые обработчики
+                const newBtn = createShopBtn.cloneNode(true);
+                createShopBtn.parentNode.replaceChild(newBtn, createShopBtn);
+                const btn = document.getElementById('create-shop-btn');
+                
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[CLICK] Клик по кнопке создания магазина зарегистрирован!');
+                    if (typeof window.showCreateShopModal === 'function') {
+                        window.showCreateShopModal();
+                    } else {
+                        console.error('[ERROR] Функция window.showCreateShopModal не определена!');
+                        alert('Ошибка: функция не найдена. Проверьте консоль (F12).');
+                    }
+                    return false;
+                });
+                console.log('[INIT] ✅ Обработчик добавлен к кнопке создания магазина');
+                console.log('[TEST] Доступность функции showCreateShopModal:', typeof window.showCreateShopModal);
+            } else {
+                console.warn('[WARN] ⚠️ Кнопка create-shop-btn не найдена! Проверьте, что вы залогинены как admin или super_admin.');
+            }
+                
+                // Обработчик для кнопки отправки формы создания магазина
+                const createShopSubmitBtn = document.getElementById('create-shop-submit-btn');
+                console.log('Кнопка create-shop-submit-btn:', createShopSubmitBtn);
+                if (createShopSubmitBtn) {
+                    createShopSubmitBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('[EVENT LISTENER] Клик по кнопке отправки формы через addEventListener');
+                        console.log('[EVENT LISTENER] window.createShop:', typeof window.createShop);
+                        if (typeof window.createShop === 'function') {
+                            console.log('[EVENT LISTENER] Вызываем window.createShop()...');
+                            window.createShop().catch(err => {
+                                console.error('[EVENT LISTENER] Ошибка в createShop:', err);
+                            });
+                        } else {
+                            console.error('[ERROR] Функция window.createShop не определена!');
+                            alert('Ошибка: функция createShop не найдена. Проверьте консоль (F12).');
+                        }
+                        return false;
+                    });
+                    console.log('Обработчик добавлен к кнопке отправки формы');
+                } else {
+                    console.warn('Кнопка create-shop-submit-btn не найдена!');
+                }
+                
+                // Обработчик для кнопки отмены создания магазина
+                const createShopCancelBtn = document.getElementById('create-shop-cancel-btn');
+                if (createShopCancelBtn) {
+                    createShopCancelBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (typeof window.closeCreateShopModal === 'function') {
+                            window.closeCreateShopModal();
+                        }
+                    });
+                }
+                
+                // Обработчик для кнопки закрытия модального окна (крестик)
+                const createShopCloseBtn = document.getElementById('create-shop-close-btn');
+                if (createShopCloseBtn) {
+                    createShopCloseBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (typeof window.closeCreateShopModal === 'function') {
+                            window.closeCreateShopModal();
+                        }
+                    });
+                }
+                
+                // Проверяем наличие модального окна
+                const modal = document.getElementById('create-shop-modal');
+                console.log('[INIT] Модальное окно create-shop-modal:', modal);
+                if (modal) {
+                    console.log('[INIT] ✅ Модальное окно найдено');
+                } else {
+                    console.error('[ERROR] ❌ Модальное окно не найдено!');
+                }
+            }, 100);
+        });
+        
+        // Дополнительная проверка через 1 секунду (на случай асинхронной загрузки)
+        setTimeout(function() {
+            console.log('[DELAYED CHECK] Проверка через 1 секунду...');
+            const btn = document.getElementById('create-shop-btn');
+            console.log('[DELAYED CHECK] Кнопка найдена:', btn);
+            console.log('[DELAYED CHECK] Функция showCreateShopModal:', typeof window.showCreateShopModal);
+            if (btn && !btn.hasAttribute('data-listener-added')) {
+                console.log('[DELAYED INIT] Добавляем обработчик с задержкой...');
+                btn.setAttribute('data-listener-added', 'true');
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[DELAYED CLICK] Клик зарегистрирован!');
+                    if (typeof window.showCreateShopModal === 'function') {
+                        window.showCreateShopModal();
+                    } else {
+                        console.error('[ERROR] window.showCreateShopModal не определена!');
+                    }
+                    return false;
+                });
+            }
+        }, 1000);
+        
+        // Тест доступности функции сразу после определения
+        (function testFunctions() {
+            console.log('[GLOBAL TEST] showCreateShopModal определена:', typeof window.showCreateShopModal);
+            console.log('[GLOBAL TEST] closeCreateShopModal определена:', typeof window.closeCreateShopModal);
+            
+            // Проверяем кнопку через небольшую задержку
+            setTimeout(() => {
+                const btn = document.getElementById('create-shop-btn');
+                console.log('[GLOBAL TEST] Кнопка существует:', btn !== null);
+                if (btn) {
+                    console.log('[GLOBAL TEST] Кнопка найдена, добавляем тестовый обработчик...');
+                    btn.onclick = function() {
+                        console.log('[TEST CLICK] Кнопка нажата через onclick!');
+                        if (typeof window.showCreateShopModal === 'function') {
+                            window.showCreateShopModal();
+                        } else {
+                            alert('Функция не найдена!');
+                        }
+                    };
+                }
+            }, 500);
+        })();
+        
+        // Обработчики для модального окна редактирования магазина
+        (function() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initEditShopModalHandlers);
+            } else {
+                initEditShopModalHandlers();
+            }
+            
+            function initEditShopModalHandlers() {
+                const modal = document.getElementById('edit-shop-modal');
+                if (modal) {
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) {
+                            if (typeof window.closeEditShopModal === 'function') {
+                                window.closeEditShopModal();
+                            }
+                        }
+                    });
+                }
+                
+                // Закрытие по Escape
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        const modal = document.getElementById('edit-shop-modal');
+                        if (modal && modal.style.display === 'flex') {
+                            if (typeof window.closeEditShopModal === 'function') {
+                                window.closeEditShopModal();
+                            }
+                        }
+                    }
+                });
+                
+                // Обработчик для кнопки отправки формы редактирования
+                const editShopSubmitBtn = document.getElementById('edit-shop-submit-btn');
+                if (editShopSubmitBtn) {
+                    editShopSubmitBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (typeof window.updateShop === 'function') {
+                            window.updateShop().catch(err => {
+                                console.error('[EVENT LISTENER] Ошибка в updateShop:', err);
+                            });
+                        }
+                        return false;
+                    });
+                }
+                
+                // Обработчик для кнопки отмены редактирования
+                const editShopCancelBtn = document.getElementById('edit-shop-cancel-btn');
+                if (editShopCancelBtn) {
+                    editShopCancelBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (typeof window.closeEditShopModal === 'function') {
+                            window.closeEditShopModal();
+                        }
+                        return false;
+                    });
+                }
+                
+                // Обработчик для кнопки закрытия модального окна (крестик)
+                const editShopCloseBtn = document.getElementById('edit-shop-close-btn');
+                if (editShopCloseBtn) {
+                    editShopCloseBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (typeof window.closeEditShopModal === 'function') {
+                            window.closeEditShopModal();
+                        }
+                        return false;
+                    });
+                }
+            }
+        })();
+
+        // Загружаем настройки при загрузке страницы
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadSettings);
+        } else {
+            loadSettings();
+        }
+{% endblock %}
+

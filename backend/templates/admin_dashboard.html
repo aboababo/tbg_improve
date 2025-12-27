@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Админ панель - OSAGAMING CRM{% endblock %}
+
+{% block styles %}
+<style>
+    .page-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+    }
+
+    .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+
+    .action-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        text-decoration: none;
+        color: var(--text);
+        display: block;
+        transition: all 0.2s;
+    }
+
+    .action-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-2px);
+    }
+
+    .action-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .action-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .action-desc {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Админ панель</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_chats }}</div>
+        <div class="stat-label">Всего чатов</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_managers }}</div>
+        <div class="stat-label">Менеджеров</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_shops }}</div>
+        <div class="stat-label">Магазинов</div>
+    </div>
+</div>
+
+<div class="actions-grid">
+    <a href="/chats" class="action-card">
+        <div class="action-icon">💬</div>
+        <div class="action-title">Чаты</div>
+        <div class="action-desc">Управление чатами и сообщениями</div>
+    </a>
+    <a href="/shops" class="action-card">
+        <div class="action-icon">🏪</div>
+        <div class="action-title">Магазины</div>
+        <div class="action-desc">Управление магазинами Avito</div>
+    </a>
+    <a href="/managers" class="action-card">
+        <div class="action-icon">👥</div>
+        <div class="action-title">Менеджеры</div>
+        <div class="action-desc">Управление менеджерами</div>
+    </a>
+    <a href="/analytics" class="action-card">
+        <div class="action-icon">📊</div>
+        <div class="action-title">Аналитика</div>
+        <div class="action-desc">Статистика и отчеты</div>
+    </a>
+    <a href="/deliveries" class="action-card">
+        <div class="action-icon">🚚</div>
+        <div class="action-title">Доставки</div>
+        <div class="action-desc">Управление доставками</div>
+    </a>
+    <a href="/settings" class="action-card">
+        <div class="action-icon">⚙️</div>
+        <div class="action-title">Настройки</div>
+        <div class="action-desc">Настройки системы</div>
+    </a>
+    <a href="/system-logs" class="action-card">
+        <div class="action-icon">📋</div>
+        <div class="action-title">Логи системы</div>
+        <div class="action-desc">Просмотр действий пользователей</div>
+    </a>
+    <a href="/admin/webhooks" class="action-card">
+        <div class="action-icon">🔗</div>
+        <div class="action-title">Webhooks</div>
+        <div class="action-desc">Управление webhooks Avito</div>
+    </a>
+</div>
+{% endblock %}

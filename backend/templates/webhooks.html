@@ -1,0 +1,797 @@
+{% extends "base.html" %}
+
+{% block title %}Управление Webhooks - OSAGAMING CRM{% endblock %}
+
+{% block styles %}
+<style>
+    .page-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+    }
+
+    .webhook-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .webhook-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .webhook-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .webhook-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .webhook-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .webhook-status.active {
+        background: rgba(34, 197, 94, 0.1);
+        color: #22c55e;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .webhook-status.inactive {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .webhook-info {
+        margin-bottom: 1rem;
+    }
+
+    .webhook-info-item {
+        display: flex;
+        margin-bottom: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .webhook-info-label {
+        font-weight: 600;
+        color: var(--text-muted);
+        min-width: 120px;
+        font-size: 0.875rem;
+    }
+
+    .webhook-info-value {
+        color: var(--text-primary);
+        word-break: break-all;
+        flex: 1;
+    }
+
+    .webhook-types {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .webhook-type-badge {
+        padding: 0.25rem 0.75rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius) - 2px);
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .webhook-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: var(--radius);
+        font-weight: 600;
+        font-size: 0.875rem;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+
+    .btn-danger {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover {
+        background: rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-secondary {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--primary);
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg);
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-checkbox-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .form-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .form-checkbox label {
+        cursor: pointer;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+    }
+
+    .form-help {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .notification {
+        padding: 1rem;
+        border-radius: var(--radius);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .notification.success {
+        background: rgba(34, 197, 94, 0.1);
+        color: #22c55e;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .notification.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .notification.info {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .loading {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="webhook-container">
+    <h1 class="page-title">Управление Webhooks Avito</h1>
+
+    <div id="notification-container"></div>
+
+    <div class="webhook-card">
+        <h2 class="webhook-title" style="margin-bottom: 1rem;">Регистрация нового Webhook</h2>
+        
+        <div class="notification info" style="margin-bottom: 1.5rem;">
+            <span>ℹ️</span>
+            <div>
+                <strong>Как это работает:</strong><br>
+                1. Укажите URL вашего сервера (должен быть HTTPS)<br>
+                2. Avito будет отправлять уведомления о новых сообщениях и изменениях в чатах<br>
+                3. Система автоматически синхронизирует данные при получении уведомлений
+            </div>
+        </div>
+        
+        <form id="webhook-form">
+            <div class="form-group">
+                <label class="form-label" for="webhook-url">URL Webhook *</label>
+                <input 
+                    type="url" 
+                    id="webhook-url" 
+                    class="form-input" 
+                    placeholder="https://ваш-домен.com/webhook/avito"
+                    required
+                >
+                <div class="form-help">
+                    <strong>Пример:</strong> https://crm.example.com/webhook/avito<br>
+                    ⚠️ URL должен начинаться с <strong>https://</strong> (не http://)<br>
+                    ⚠️ URL должен быть доступен из интернета (не localhost)
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Типы событий *</label>
+                <div class="form-checkbox-group">
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="type-message" name="types" value="message" checked>
+                        <label for="type-message">message - события сообщений (новые сообщения, обновления, удаления)</label>
+                    </div>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="type-chat" name="types" value="chat" checked>
+                        <label for="type-chat">chat - события чатов (создание, обновление, архивация)</label>
+                    </div>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="type-user" name="types" value="user">
+                        <label for="type-user">user - события пользователей</label>
+                    </div>
+                </div>
+                <div class="form-help">Выберите типы событий, на которые должен подписаться webhook</div>
+            </div>
+
+            <div class="webhook-actions">
+                <button type="submit" class="btn btn-primary">
+                    <span>🔗</span>
+                    <span>Зарегистрировать Webhook</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div id="webhook-info-container">
+        <div class="loading">Загрузка информации о webhook...</div>
+    </div>
+
+    <!-- Тестирование webhook -->
+    <div class="webhook-card">
+        <h2 class="webhook-title" style="margin-bottom: 1rem;">Тестирование Webhook</h2>
+        <div class="webhook-info">
+            <div class="webhook-info-item">
+                <span class="webhook-info-label">URL для теста:</span>
+                <span class="webhook-info-value">https://osagaming.store/webhook/avito</span>
+            </div>
+        </div>
+        <div class="webhook-actions">
+            <button class="btn btn-secondary" onclick="testWebhook()">
+                <span>🔍</span>
+                <span>Проверить доступность</span>
+            </button>
+            <button class="btn btn-secondary" onclick="sendTestWebhook()">
+                <span>📤</span>
+                <span>Отправить тестовый webhook</span>
+            </button>
+        </div>
+        <div id="test-results" style="margin-top: 1rem;"></div>
+    </div>
+</div>
+
+<script>
+    let currentWebhook = null;
+    let selectedShopId = null;
+
+    // Загрузка списка магазинов для выбора
+    async function loadShops() {
+        try {
+            const response = await fetch('/api/shops', {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const shops = await response.json();
+                // Можно добавить выбор магазина, если нужно
+                if (shops.length > 0) {
+                    selectedShopId = shops[0].id;
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки магазинов:', error);
+        }
+    }
+
+    // Загрузка информации о текущем webhook
+    async function loadWebhookInfo() {
+        const container = document.getElementById('webhook-info-container');
+        container.innerHTML = '<div class="loading">Загрузка информации о webhook...</div>';
+
+        try {
+            const response = await fetch('/api/admin/webhooks', {
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                currentWebhook = data.webhook;
+
+                if (currentWebhook && currentWebhook.url) {
+                    renderWebhookInfo(currentWebhook);
+                } else {
+                    container.innerHTML = `
+                        <div class="webhook-card">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">🔗</div>
+                                <h3>Webhook не зарегистрирован</h3>
+                                <p>Зарегистрируйте webhook, чтобы получать уведомления от Avito</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                const error = await response.json().catch(() => ({}));
+                container.innerHTML = `
+                    <div class="webhook-card">
+                        <div class="notification error">
+                            <span>❌</span>
+                            <span>Ошибка загрузки: ${error.error || 'Неизвестная ошибка'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            container.innerHTML = `
+                <div class="webhook-card">
+                    <div class="notification error">
+                        <span>❌</span>
+                        <span>Ошибка загрузки: ${error.message}</span>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Отображение информации о webhook
+    function renderWebhookInfo(webhook) {
+        const container = document.getElementById('webhook-info-container');
+        const isActive = webhook.active !== false;
+        const types = webhook.types || [];
+
+        container.innerHTML = `
+            <div class="webhook-card">
+                <div class="webhook-header">
+                    <h2 class="webhook-title">Текущий Webhook</h2>
+                    <div class="webhook-status ${isActive ? 'active' : 'inactive'}">
+                        <span>${isActive ? '●' : '○'}</span>
+                        <span>${isActive ? 'Активен' : 'Неактивен'}</span>
+                    </div>
+                </div>
+
+                <div class="webhook-info">
+                    <div class="webhook-info-item">
+                        <span class="webhook-info-label">URL:</span>
+                        <span class="webhook-info-value">${escapeHtml(webhook.url)}</span>
+                    </div>
+                    ${webhook.id ? `
+                    <div class="webhook-info-item">
+                        <span class="webhook-info-label">ID:</span>
+                        <span class="webhook-info-value">${escapeHtml(webhook.id)}</span>
+                    </div>
+                    ` : ''}
+                    <div class="webhook-info-item">
+                        <span class="webhook-info-label">Типы событий:</span>
+                        <div class="webhook-info-value">
+                            <div class="webhook-types">
+                                ${types.map(type => `<span class="webhook-type-badge">${escapeHtml(type)}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    ${webhook.created_at ? `
+                    <div class="webhook-info-item">
+                        <span class="webhook-info-label">Создан:</span>
+                        <span class="webhook-info-value">${formatDate(webhook.created_at)}</span>
+                    </div>
+                    ` : ''}
+                    ${webhook.updated_at ? `
+                    <div class="webhook-info-item">
+                        <span class="webhook-info-label">Обновлен:</span>
+                        <span class="webhook-info-value">${formatDate(webhook.updated_at)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="webhook-actions">
+                    <button class="btn btn-secondary" onclick="editWebhook()">
+                        <span>✏️</span>
+                        <span>Редактировать</span>
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteWebhook()">
+                        <span>🗑️</span>
+                        <span>Удалить</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Регистрация нового webhook
+    document.getElementById('webhook-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const url = document.getElementById('webhook-url').value.trim();
+        const checkboxes = document.querySelectorAll('input[name="types"]:checked');
+        const types = Array.from(checkboxes).map(cb => cb.value);
+
+        if (!url) {
+            showNotification('Введите URL webhook', 'error');
+            return;
+        }
+
+        if (types.length === 0) {
+            showNotification('Выберите хотя бы один тип события', 'error');
+            return;
+        }
+
+        if (!url.startsWith('https://')) {
+            showNotification('URL должен начинаться с https://', 'error');
+            return;
+        }
+
+        try {
+            showNotification('Регистрация webhook...', 'info');
+
+            const response = await fetch('/api/admin/webhooks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    url: url,
+                    types: types
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showNotification('✅ Webhook успешно зарегистрирован', 'success');
+                document.getElementById('webhook-form').reset();
+                document.getElementById('type-message').checked = true;
+                document.getElementById('type-chat').checked = true;
+                await loadWebhookInfo();
+            } else {
+                showNotification(`❌ Ошибка: ${data.error || 'Неизвестная ошибка'}`, 'error');
+            }
+        } catch (error) {
+            showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        }
+    });
+
+    // Редактирование webhook
+    async function editWebhook() {
+        if (!currentWebhook) return;
+
+        const url = prompt('Введите новый URL:', currentWebhook.url);
+        if (!url) return;
+
+        if (!url.startsWith('https://')) {
+            showNotification('URL должен начинаться с https://', 'error');
+            return;
+        }
+
+        const types = currentWebhook.types || ['message', 'chat'];
+        const message = `Выберите типы событий (через запятую): message, chat, user\nТекущие: ${types.join(', ')}`;
+        const typesInput = prompt(message, types.join(', '));
+        
+        let newTypes = types;
+        if (typesInput) {
+            newTypes = typesInput.split(',').map(t => t.trim()).filter(t => t);
+        }
+
+        try {
+            showNotification('Обновление webhook...', 'info');
+
+            const response = await fetch('/api/admin/webhooks', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    url: url,
+                    types: newTypes
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showNotification('✅ Webhook успешно обновлен', 'success');
+                await loadWebhookInfo();
+            } else {
+                showNotification(`❌ Ошибка: ${data.error || 'Неизвестная ошибка'}`, 'error');
+            }
+        } catch (error) {
+            showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        }
+    }
+
+    // Удаление webhook
+    async function deleteWebhook() {
+        if (!currentWebhook) return;
+
+        if (!confirm('Вы уверены, что хотите удалить webhook?')) {
+            return;
+        }
+
+        try {
+            showNotification('Удаление webhook...', 'info');
+
+            const response = await fetch('/api/admin/webhooks', {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showNotification('✅ Webhook успешно удален', 'success');
+                currentWebhook = null;
+                await loadWebhookInfo();
+            } else {
+                showNotification(`❌ Ошибка: ${data.error || 'Неизвестная ошибка'}`, 'error');
+            }
+        } catch (error) {
+            showNotification(`❌ Ошибка: ${error.message}`, 'error');
+        }
+    }
+
+    // Показ уведомлений
+    function showNotification(message, type = 'info') {
+        const container = document.getElementById('notification-container');
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+            <span>${message}</span>
+        `;
+        container.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+
+    // Вспомогательные функции
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString('ru-RU');
+        } catch {
+            return dateString;
+        }
+    }
+
+    // Автоматическое определение URL webhook
+    function getWebhookUrl() {
+        // Используем домен osagaming.store
+        const webhookUrl = 'https://osagaming.store/webhook/avito';
+        
+        // Устанавливаем в поле ввода
+        const urlInput = document.getElementById('webhook-url');
+        if (urlInput && !urlInput.value) {
+            urlInput.value = webhookUrl;
+            urlInput.placeholder = webhookUrl;
+        }
+        
+        return webhookUrl;
+    }
+
+    // Тестирование доступности webhook
+    async function testWebhook() {
+        const resultsDiv = document.getElementById('test-results');
+        resultsDiv.innerHTML = '<div class="loading">Проверка доступности...</div>';
+
+        try {
+            const response = await fetch('https://osagaming.store/webhook/avito', {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            const data = await response.json().catch(() => ({ message: response.statusText }));
+
+            if (response.ok) {
+                resultsDiv.innerHTML = `
+                    <div class="notification success">
+                        <span>✅</span>
+                        <div>
+                            <strong>Webhook endpoint доступен!</strong><br>
+                            Статус: ${response.status} ${response.statusText}<br>
+                            Ответ: ${JSON.stringify(data, null, 2)}
+                        </div>
+                    </div>
+                `;
+            } else {
+                resultsDiv.innerHTML = `
+                    <div class="notification error">
+                        <span>❌</span>
+                        <div>
+                            <strong>Ошибка доступа</strong><br>
+                            Статус: ${response.status} ${response.statusText}<br>
+                            ${data.error || data.message || 'Неизвестная ошибка'}
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            resultsDiv.innerHTML = `
+                <div class="notification error">
+                    <span>❌</span>
+                    <div>
+                        <strong>Ошибка подключения</strong><br>
+                        ${error.message}<br>
+                        Проверьте, что домен osagaming.store доступен
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Отправка тестового webhook
+    async function sendTestWebhook() {
+        const resultsDiv = document.getElementById('test-results');
+        resultsDiv.innerHTML = '<div class="loading">Отправка тестового webhook...</div>';
+
+        const testData = {
+            id: 'test_webhook_' + Date.now(),
+            version: '3',
+            timestamp: new Date().toISOString(),
+            payload: {
+                type: 'message',
+                value: {
+                    id: 'test_message_123',
+                    chat_id: 'test_chat_123',
+                    user_id: '12345',
+                    content: {
+                        text: 'Тестовое сообщение для проверки webhook'
+                    },
+                    created_at: new Date().toISOString()
+                }
+            }
+        };
+
+        try {
+            const response = await fetch('https://osagaming.store/webhook/avito', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(testData)
+            });
+
+            const data = await response.json().catch(() => ({ message: response.statusText }));
+
+            if (response.ok) {
+                resultsDiv.innerHTML = `
+                    <div class="notification success">
+                        <span>✅</span>
+                        <div>
+                            <strong>Тестовый webhook успешно обработан!</strong><br>
+                            Статус: ${response.status} ${response.statusText}<br>
+                            <details style="margin-top: 0.5rem;">
+                                <summary style="cursor: pointer; font-weight: 600;">Детали ответа</summary>
+                                <pre style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border-radius: var(--radius); overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    </div>
+                `;
+            } else {
+                resultsDiv.innerHTML = `
+                    <div class="notification error">
+                        <span>❌</span>
+                        <div>
+                            <strong>Ошибка обработки webhook</strong><br>
+                            Статус: ${response.status} ${response.statusText}<br>
+                            ${data.error || data.message || 'Неизвестная ошибка'}
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            resultsDiv.innerHTML = `
+                <div class="notification error">
+                    <span>❌</span>
+                    <div>
+                        <strong>Ошибка отправки</strong><br>
+                        ${error.message}<br>
+                        Проверьте подключение к серверу
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Загрузка при инициализации
+    loadShops();
+    getWebhookUrl(); // Автоматически заполняем URL
+    loadWebhookInfo();
+</script>
+{% endblock %}

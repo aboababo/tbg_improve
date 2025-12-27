@@ -1,0 +1,963 @@
+{% extends "base.html" %}
+
+{% block title %}Менеджеры - OSAGAMING CRM{% endblock %}
+
+{% block styles %}
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .managers-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .manager-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .manager-info {
+        flex: 1;
+    }
+
+    .manager-name {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .manager-email {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .manager-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .manager-status.active {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .manager-status.inactive {
+        background: #fef2f2;
+        color: #991b1b;
+    }
+
+    .manager-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: calc(var(--radius));
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover, #2563eb);
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: var(--bg-secondary);
+        color: var(--text);
+    }
+
+    .btn-secondary:hover {
+        background: var(--muted-hover, #e5e7eb);
+    }
+
+    .btn-danger {
+        background: #dc2626;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #b91c1c;
+        transform: translateY(-1px);
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius) + 4px);
+        padding: 2rem;
+        max-width: 500px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 4px;
+        color: var(--text-muted);
+    }
+
+    .modal-close:hover {
+        background: var(--bg-secondary);
+        color: var(--text);
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.375rem;
+        color: var(--text);
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius));
+        background: var(--card);
+        color: var(--text);
+        font-size: 0.875rem;
+        transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-input.error {
+        border-color: #dc2626;
+    }
+
+    .form-error {
+        color: #dc2626;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    .permissions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .permission-group {
+        background: var(--bg-secondary);
+        padding: 1rem;
+        border-radius: calc(var(--radius));
+    }
+
+    .permission-group-title {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .permission-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .permission-checkbox {
+        width: 16px;
+        height: 16px;
+    }
+
+    .permission-label {
+        font-size: 0.8125rem;
+        color: var(--text);
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-state-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text);
+    }
+
+    .manager-role {
+        margin-top: 0.5rem;
+    }
+
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .role-manager {
+        background: #e0f2fe;
+        color: #0277bd;
+    }
+
+    .role-admin {
+        background: #fff3e0;
+        color: #ef6c00;
+    }
+
+    .role-super_admin {
+        background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+        color: #2e7d32;
+    }
+
+    .temp-password-info {
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: calc(var(--radius));
+        font-size: 0.875rem;
+    }
+
+    .temp-password-code {
+        background: #374151;
+        color: #f9fafb;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-family: monospace;
+        font-weight: 600;
+        margin: 0 0.25rem;
+        user-select: all;
+    }
+
+    .password-warning {
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        background: #fef2f2;
+        border: 1px solid #f87171;
+        border-radius: calc(var(--radius));
+        color: #dc2626;
+        font-size: 0.8125rem;
+    }
+
+    .btn-info {
+        background: #0ea5e9;
+        color: white;
+    }
+
+    .btn-info:hover {
+        background: #0284c7;
+        transform: translateY(-1px);
+    }
+
+    .logs-container {
+        max-height: 60vh;
+        overflow-y: auto;
+        padding: 1rem 0;
+    }
+
+    .log-entry {
+        display: flex;
+        gap: 1rem;
+        padding: 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius));
+        margin-bottom: 0.5rem;
+        background: var(--card);
+    }
+
+    .log-time {
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        min-width: 140px;
+    }
+
+    .log-content {
+        flex: 1;
+    }
+
+    .log-action {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 0.25rem;
+    }
+
+    .log-description {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+    }
+
+    .log-empty {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeOut {
+        to {
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">👥 Управление пользователями</h1>
+    <div style="display: flex; gap: 0.75rem;">
+        <button class="btn btn-primary" onclick="openManagerModal()">
+            ➕ Добавить пользователя
+        </button>
+        <button class="btn btn-secondary" onclick="loadManagers()">🔄 Обновить</button>
+    </div>
+</div>
+
+<div id="managers-container" class="managers-list">
+    <!-- Менеджеры загружаются сюда -->
+</div>
+
+<!-- Модальное окно для создания/редактирования менеджера -->
+<div id="manager-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modal-title" class="modal-title">Добавить пользователя</h2>
+            <button class="modal-close" onclick="closeManagerModal()">&times;</button>
+        </div>
+
+        <form id="manager-form" onsubmit="saveManager(event)">
+            <input type="hidden" id="manager-id" name="id">
+
+            <div class="form-group">
+                <label for="manager-username" class="form-label">Имя пользователя *</label>
+                <input type="text" id="manager-username" name="username" class="form-input" required>
+                <div class="form-error" id="username-error"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="manager-email" class="form-label">Email *</label>
+                <input type="email" id="manager-email" name="email" class="form-input" required>
+                <div class="form-error" id="email-error"></div>
+            </div>
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label for="manager-first-name" class="form-label">Имя</label>
+                    <input type="text" id="manager-first-name" name="first_name" class="form-input" placeholder="Введите имя">
+                    <div class="form-help">Имя будет отображаться в сообщениях</div>
+                </div>
+                <div class="form-group">
+                    <label for="manager-last-name" class="form-label">Фамилия</label>
+                    <input type="text" id="manager-last-name" name="last_name" class="form-input" placeholder="Введите фамилию">
+                    <div class="form-help">Фамилия будет отображаться вместе с именем</div>
+                </div>
+            </div>
+
+            <div class="form-group" id="password-group">
+                <label for="manager-password" class="form-label">Пароль *</label>
+                <input type="password" id="manager-password" name="password" class="form-input" required>
+                <div class="form-error" id="password-error"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="manager-salary" class="form-label">Зарплата (₽)</label>
+                <input type="number" id="manager-salary" name="salary" class="form-input" min="0" step="1000">
+            </div>
+
+            <div class="form-group" id="role-group">
+                <label for="manager-role" class="form-label">Роль</label>
+                <select id="manager-role" name="role" class="form-input">
+                    <option value="manager">Менеджер</option>
+                    <option value="admin">Администратор</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="manager-active" name="is_active" checked>
+                    Аккаунт активен
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeManagerModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary" id="save-btn">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра логов -->
+<div id="logs-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="logs-modal-title" class="modal-title">Логи действий</h2>
+            <button class="modal-close" onclick="closeLogsModal()">&times;</button>
+        </div>
+
+        <div id="logs-container" class="logs-container">
+            <!-- Логи загружаются сюда -->
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeLogsModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentManagers = [];
+
+    // Загрузка списка менеджеров
+    async function loadManagers() {
+        try {
+            const response = await fetch('/api/managers/list');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            currentManagers = await response.json();
+            renderManagers();
+        } catch (error) {
+            console.error('Ошибка загрузки менеджеров:', error);
+            showNotification('Не удалось загрузить менеджеров', 'error');
+        }
+    }
+
+    // Отрисовка списка менеджеров
+    function renderManagers() {
+            const container = document.getElementById('managers-container');
+
+        if (currentManagers.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">👥</div>
+                    <div class="empty-state-title">Нет менеджеров</div>
+                    <p>Создайте первого менеджера для начала работы</p>
+                </div>
+            `;
+                return;
+            }
+            
+        container.innerHTML = currentManagers.map(manager => `
+                <div class="manager-card">
+                    <div class="manager-info">
+                    <div class="manager-name">${escapeHtml(manager.username)}</div>
+                    <div class="manager-email">${escapeHtml(manager.email || 'Email не указан')}</div>
+                    <div class="manager-status ${manager.is_active ? 'active' : 'inactive'}">
+                        ${manager.is_active ? '✅ Активен' : '❌ Неактивен'}
+                    </div>
+                    <div class="manager-role">
+                        <span class="role-badge role-${manager.role}">
+                            ${getRoleIcon(manager.role)} ${getRoleText(manager.role)}
+                        </span>
+                    </div>
+                    ${manager.temp_password ? `
+                        <div class="temp-password-info">
+                            <strong>🔐 Одноразовый пароль:</strong>
+                            <code class="temp-password-code">${escapeHtml(manager.temp_password)}</code>
+                            <small>(скопировать и передать менеджеру)</small>
+                        </div>
+                    ` : ''}
+                    ${!manager.password_changed && !manager.temp_password ? `
+                        <div class="password-warning">
+                            ⚠️ Менеджер должен изменить пароль при следующем входе
+                        </div>
+                    ` : ''}
+                    </div>
+                    <div class="manager-actions">
+                    <button class="btn btn-secondary" onclick="editManager(${manager.id})">
+                        ✏️ Редактировать
+                    </button>
+                    <button class="btn btn-info" onclick="resetUserPassword(${manager.id}, '${escapeHtml(manager.username)}')" title="Сбросить пароль пользователя">
+                        🔑 Сбросить пароль
+                    </button>
+                    <button class="btn btn-info" onclick="viewManagerLogs(${manager.id}, '${escapeHtml(manager.username)}')">
+                        📊 Логи
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteManager(${manager.id}, '${escapeHtml(manager.username)}')" title="Деактивировать аккаунт">
+                        🗑️ Удалить
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Открытие модального окна для создания менеджера
+    function openManagerModal(managerId = null) {
+        const modal = document.getElementById('manager-modal');
+        const form = document.getElementById('manager-form');
+        const title = document.getElementById('modal-title');
+        const roleGroup = document.getElementById('role-group');
+
+        // Сброс формы
+        form.reset();
+        clearFormErrors();
+
+        if (managerId) {
+            // Редактирование существующего менеджера
+            const manager = currentManagers.find(m => m.id === managerId);
+            if (manager) {
+                document.getElementById('manager-id').value = manager.id;
+                document.getElementById('manager-username').value = manager.username;
+                document.getElementById('manager-email').value = manager.email;
+                document.getElementById('manager-first-name').value = manager.first_name || '';
+                document.getElementById('manager-last-name').value = manager.last_name || '';
+                document.getElementById('manager-salary').value = manager.salary || '';
+                document.getElementById('manager-active').checked = manager.is_active;
+                document.getElementById('manager-role').value = manager.role || 'manager';
+
+                title.textContent = 'Редактировать пользователя';
+                roleGroup.style.display = 'block'; // Показываем выбор роли
+                // При редактировании пароль не обязателен
+                document.getElementById('password-group').querySelector('input').required = false;
+                document.getElementById('password-group').querySelector('label').textContent = 'Пароль (оставьте пустым, чтобы не менять)';
+            }
+            } else {
+                // Создание нового пользователя
+                document.getElementById('manager-id').value = '';
+                document.getElementById('manager-first-name').value = '';
+                document.getElementById('manager-last-name').value = '';
+                title.textContent = 'Добавить пользователя';
+                roleGroup.style.display = 'block';
+                // При создании пароль обязателен
+                document.getElementById('password-group').querySelector('input').required = true;
+                document.getElementById('password-group').querySelector('label').textContent = 'Пароль *';
+            }
+
+        modal.style.display = 'flex';
+    }
+
+    // Закрытие модального окна
+    function closeManagerModal() {
+        const modal = document.getElementById('manager-modal');
+        modal.style.display = 'none';
+    }
+
+    // Просмотр логов пользователя
+    async function viewManagerLogs(managerId, managerName) {
+        const modal = document.getElementById('logs-modal');
+        const title = document.getElementById('logs-modal-title');
+        const container = document.getElementById('logs-container');
+
+        title.textContent = `Логи действий: ${managerName}`;
+        container.innerHTML = '<div style="text-align: center; padding: 2rem;">Загрузка логов...</div>';
+
+        modal.style.display = 'flex';
+
+        try {
+            const response = await fetch(`/api/user-activity-logs?user_id=${managerId}&limit=50`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const logs = await response.json();
+            renderLogs(logs);
+        } catch (error) {
+            console.error('Ошибка загрузки логов:', error);
+            container.innerHTML = '<div class="log-empty">Не удалось загрузить логи действий</div>';
+        }
+    }
+
+    // Отрисовка логов
+    function renderLogs(logs) {
+        const container = document.getElementById('logs-container');
+
+        if (!logs || logs.length === 0) {
+            container.innerHTML = '<div class="log-empty">У этого пользователя пока нет действий</div>';
+            return;
+        }
+
+        container.innerHTML = logs.map(log => {
+            const time = new Date(log.created_at).toLocaleString('ru-RU');
+            return `
+                <div class="log-entry">
+                    <div class="log-time">${time}</div>
+                    <div class="log-content">
+                        <div class="log-action">${escapeHtml(log.action_type || 'Неизвестное действие')}</div>
+                        <div class="log-description">${escapeHtml(log.action_description || '')}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Закрытие модального окна логов
+    function closeLogsModal() {
+        const modal = document.getElementById('logs-modal');
+        modal.style.display = 'none';
+    }
+
+    // Сохранение менеджера
+    async function saveManager(event) {
+        event.preventDefault();
+
+        const formData = new FormData(event.target);
+        const managerData = {
+            username: formData.get('username').trim(),
+            email: formData.get('email').trim(),
+            first_name: formData.get('first_name')?.trim() || null,
+            last_name: formData.get('last_name')?.trim() || null,
+            salary: parseFloat(formData.get('salary')) || 0,
+            role: formData.get('role') || 'manager',
+            is_active: formData.get('is_active') === 'on'
+        };
+
+        const managerId = formData.get('id');
+        const isEdit = !!managerId;
+
+        // Валидация
+        if (!managerData.username) {
+            showFormError('username', 'Имя пользователя обязательно');
+            return;
+        }
+        if (!managerData.email) {
+            showFormError('email', 'Email обязателен');
+            return;
+        }
+        if (!isEdit) {
+            const password = formData.get('password');
+            if (!password || password.length < 6) {
+                showFormError('password', 'Пароль должен быть не менее 6 символов');
+                return;
+            }
+            managerData.password = password;
+        } else {
+            // При редактировании пароль опционален
+            const password = formData.get('password');
+            if (password && password.length >= 6) {
+                managerData.password = password;
+            }
+        }
+
+        const saveBtn = document.getElementById('save-btn');
+        const originalText = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Сохранение...';
+
+        try {
+            const url = isEdit ? `/api/managers/${managerId}` : '/api/managers';
+            const method = isEdit ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(managerData)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Ошибка сохранения');
+            }
+
+            const result = await response.json();
+
+            if (!isEdit && result.temp_password) {
+                showNotification(
+                    `Пользователь создан! Одноразовый пароль: ${result.temp_password}`,
+                    'success'
+                );
+                // Копируем пароль в буфер обмена
+                navigator.clipboard.writeText(result.temp_password).catch(() => {});
+            } else {
+                showNotification(
+                    isEdit ? 'Пользователь обновлен' : 'Пользователь создан',
+                    'success'
+                );
+            }
+
+            closeManagerModal();
+            await loadManagers();
+
+        } catch (error) {
+            console.error('Ошибка сохранения:', error);
+            showNotification(error.message, 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+        }
+    }
+
+    // Редактирование менеджера
+    function editManager(managerId) {
+        openManagerModal(managerId);
+    }
+
+    // Сброс пароля пользователя
+    async function resetUserPassword(managerId, managerName) {
+        // Получаем информацию о пользователе для более точного сообщения
+        const manager = currentManagers.find(m => m.id === managerId);
+        const roleText = manager && manager.role === 'admin' ? 'администратору' : 'менеджеру';
+        
+        if (!confirm(`Вы уверены, что хотите сбросить пароль ${roleText} "${managerName}"?\n\nБудет сгенерирован новый одноразовый пароль, который нужно передать пользователю.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/managers/${managerId}/reset-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Ошибка сброса пароля');
+            }
+
+            // Показываем новый пароль в модальном окне
+            const passwordMessage = `Пароль успешно сброшен для пользователя "${managerName}"!\n\nНовый одноразовый пароль:\n${result.temp_password}\n\nСкопируйте этот пароль и передайте пользователю.`;
+            
+            // Копируем пароль в буфер обмена
+            navigator.clipboard.writeText(result.temp_password).then(() => {
+                showNotification('Пароль скопирован в буфер обмена!', 'success');
+            }).catch(() => {
+                // Если не удалось скопировать, просто показываем уведомление
+            });
+            
+            // Показываем пароль в alert для удобства
+            alert(passwordMessage);
+            
+            showNotification(`Пароль сброшен для ${roleText} "${managerName}"`, 'success');
+            await loadManagers();
+
+        } catch (error) {
+            console.error('Ошибка сброса пароля:', error);
+            showNotification(error.message || 'Ошибка при сбросе пароля', 'error');
+        }
+    }
+
+    // Удаление менеджера
+    async function deleteManager(managerId, managerName) {
+        // Получаем информацию о пользователе для более точного сообщения
+        const manager = currentManagers.find(m => m.id === managerId);
+        const roleText = manager && manager.role === 'admin' ? 'администратора' : 'менеджера';
+        
+        if (!confirm(`Вы уверены, что хотите удалить ${roleText} "${managerName}"?\n\nЭто действие деактивирует аккаунт пользователя. Его нельзя будет отменить.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/managers/${managerId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Ошибка удаления');
+            }
+
+            showNotification(result.message || `${roleText.charAt(0).toUpperCase() + roleText.slice(1)} удален`, 'success');
+            await loadManagers();
+
+        } catch (error) {
+            console.error('Ошибка удаления:', error);
+            showNotification(error.message || 'Ошибка при удалении пользователя', 'error');
+        }
+    }
+
+    // Вспомогательные функции для форм
+    function showFormError(fieldName, message) {
+        const errorElement = document.getElementById(`${fieldName}-error`);
+        const inputElement = document.getElementById(`manager-${fieldName}`);
+
+        if (errorElement) {
+            errorElement.textContent = message;
+        }
+        if (inputElement) {
+            inputElement.classList.add('error');
+        }
+    }
+
+    function clearFormErrors() {
+        const errorElements = document.querySelectorAll('.form-error');
+        const inputElements = document.querySelectorAll('.form-input');
+
+        errorElements.forEach(el => el.textContent = '');
+        inputElements.forEach(el => el.classList.remove('error'));
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function getRoleIcon(role) {
+        const icons = {
+            'manager': '👤',
+            'admin': '👨‍💼',
+            'super_admin': '👑'
+        };
+        return icons[role] || '❓';
+    }
+
+    function getRoleText(role) {
+        const texts = {
+            'manager': 'Менеджер',
+            'admin': 'Администратор',
+            'super_admin': 'Супер Админ'
+        };
+        return texts[role] || role;
+    }
+
+    function showNotification(message, type = 'info') {
+        // Создаем простое уведомление
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', function() {
+    loadManagers();
+
+        // Закрытие модального окна по клику вне его
+        document.getElementById('manager-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeManagerModal();
+            }
+        });
+
+        // Закрытие модального окна логов по клику вне его
+        document.getElementById('logs-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLogsModal();
+            }
+        });
+    });
+</script>
+{% endblock %}
